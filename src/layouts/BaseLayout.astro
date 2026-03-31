@@ -1,0 +1,26 @@
+---
+// src/layouts/BaseLayout.astro
+import '../styles/global.css';
+
+interface Props {
+	title: string;
+	description?: string;
+}
+
+const { title, description = "Blog Casa da Caridade" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="pt-br">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content={description} />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title} | Casa da Caridade</title>
+	</head>
+	<body>
+		<slot />
+	</body>
+</html>

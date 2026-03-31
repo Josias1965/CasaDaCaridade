@@ -1,0 +1,135 @@
+---
+// src/pages/index.astro
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import BlogCard from '../components/BlogCard.astro';
+import { supabase } from '../lib/supabase.js';
+
+// Função para converter link do Google Drive em link direto de imagem
+function getImageUrl(url) {
+  if (!url || url === '' || url.includes('exemplo.com')) {
+    return 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80';
+  }
+  
+  const cleanUrl = url.trim();
+  
+  if (cleanUrl.includes('drive.google.com')) {
+    let id = '';
+    if (cleanUrl.includes('/file/d/')) {
+      id = cleanUrl.split('/d/')[1]?.split('/')[0];
+    } else if (cleanUrl.includes('id=')) {
+      id = cleanUrl.split('id=')[1]?.split('&')[0];
+    }
+    
+    // O servidor de thumbnail do Google é o MAIS COMPATÍVEL para ambientes locais (localhost)
+    return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1200` : cleanUrl;
+  }
+  
+  return cleanUrl;
+}
+
+// Buscar posts publicados de forma resiliente
+const { data: posts, error } = await supabase
+  .from('posts')
+  .select(`
+    *,
+    categories (name, slug)
+  `)
+  .eq('status', 'published')
+  .order('published_at', { ascending: false })
+  .limit(10);
+
+// Buscar nomes de autores separadamente para evitar erro de JOIN no Supabase
+const authorIds = posts?.map(p => p.author_id) || [];
+const { data: authors } = await supabase
+  .from('user_profiles')
+  .select('id, display_name')
+  .in('id', authorIds);
+
+const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) || []);
+
+if (error) {
+  console.error("Supabase error:", error);
+}
+---
+
+<BaseLayout title="Blog">
+  <Header />
+  <main>
+    <section class="hero">
+      <div class="container hero-content">
+        <h1>Bem-vindo ao Nosso Blog</h1>
+        <p>Casa da Caridade: Compartilhando amor e espiritualidade em cada palavra.</p>
+      </div>
+    </section>
+
+    <section class="posts-grid-section">
+      <div class="container">
+        <h2 class="section-title">Posts Recentes</h2>
+        <div class="posts-grid">
+          {posts && posts.length > 0 ? (
+            posts.map(post => (
+              <BlogCard 
+                title={post.title}
+                excerpt={post.excerpt ? (post.excerpt.length > 300 ? post.excerpt.substring(0, 300) + '...' : post.excerpt) : ''}
+                slug={post.slug}
+                image={getImageUrl(post.featured_image)}
+                category={post.categories?.name}
+                author={authorsMap[post.author_id] || 'Administrador'}
+                date={post.published_at}
+              />
+            ))
+          ) : (
+            <p>Nenhum post encontrado. Comece a escrever!</p>
+          )}
+        </div>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .hero {
+    background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+    color: white;
+    padding: 100px 0;
+    text-align: center;
+    margin-bottom: 50px;
+  }
+  .hero h1 {
+    font-size: 3rem;
+    margin-bottom: 20px;
+  }
+  .hero p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .section-title {
+    margin-bottom: 40px;
+    font-size: 2rem;
+    color: var(--text-dark);
+    position: relative;
+  }
+  .section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: var(--primary);
+  }
+  .posts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 30px;
+  }
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 2rem; }
+    .posts-grid { grid-template-columns: 1fr; }
+  }
+</style>

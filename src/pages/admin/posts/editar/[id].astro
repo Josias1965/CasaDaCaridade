@@ -1,0 +1,199 @@
+---
+// src/pages/admin/posts/editar/[id].astro
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import { requireAuth } from '../../../../lib/permissions.js';
+
+const { id } = Astro.params;
+const { authorized } = await requireAuth(Astro.cookies);
+
+if (!authorized) {
+  return Astro.redirect('/admin/login');
+}
+---
+
+<AdminLayout title="Editar Post">
+  <div class="editor-container">
+    <header class="editor-header">
+      <h1>Editar Post</h1>
+      <a href="/admin/dashboard" class="back-link">&larr; Voltar</a>
+    </header>
+
+    <form id="edit-post-form" class="admin-form">
+      <!-- Hidden ID field -->
+      <input type="hidden" id="post-id" value={id} />
+      
+      <div class="form-main">
+        <div class="form-group">
+          <label for="title">Título do Post</label>
+          <input type="text" id="title" required />
+        </div>
+
+        <div class="form-group">
+          <label for="slug">Slug (URL amigável)</label>
+          <input type="text" id="slug" required />
+        </div>
+
+        <div class="form-group">
+          <label for="excerpt">Resumo / Introdução</label>
+          <textarea id="excerpt" rows="3"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="content">Conteúdo (HTML aceito)</label>
+          <textarea id="content" rows="15" required></textarea>
+        </div>
+      </div>
+
+      <aside class="form-sidebar">
+        <div class="sidebar-card">
+          <h3>Publicação</h3>
+          <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status">
+              <option value="draft">Rascunho</option>
+              <option value="published">Publicado</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-primary full-width">Atualizar Post</button>
+        </div>
+
+        <div class="sidebar-card">
+          <h3>Configurações</h3>
+          <div class="form-group">
+            <label for="category">Categoria</label>
+            <select id="category">
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="featured_image">URL da Imagem de Capa</label>
+            <input type="url" id="featured_image" />
+          </div>
+          <div class="form-group">
+            <label for="video_url">URL do Vídeo (YouTube)</label>
+            <input type="url" id="video_url" placeholder="https://www.youtube.com/watch?v=..." />
+          </div>
+        </div>
+        
+        <button type="button" id="delete-btn" class="btn-danger full-width">Excluir Post</button>
+      </aside>
+    </form>
+  </div>
+
+  <script>
+    import { supabase } from '../../../../lib/supabase.js';
+
+    const postId = document.getElementById('post-id').value;
+
+    // Carregar dados do post
+    async function loadPost() {
+      const { data: post, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('id', postId)
+        .single();
+
+      if (error) {
+        alert('Erro ao carregar post: ' + error.message);
+        return;
+      }
+
+      document.getElementById('title').value = post.title;
+      document.getElementById('slug').value = post.slug;
+      document.getElementById('excerpt').value = post.excerpt || '';
+      document.getElementById('content').value = post.content;
+      document.getElementById('status').value = post.status;
+      document.getElementById('featured_image').value = post.featured_image || '';
+      document.getElementById('video_url').value = post.video_url || '';
+
+      // Set category after loading categories
+      await loadCategories(post.category_id);
+    }
+
+    async function loadCategories(currentCatId) {
+      const { data } = await supabase
+        .from('categories')
+        .select('id, name')
+        .order('name');
+
+      if (data) {
+        const select = document.getElementById('category');
+        data.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat.id;
+          option.textContent = cat.name;
+          if (cat.id === currentCatId) option.selected = true;
+          select.appendChild(option);
+        });
+      }
+    }
+
+    // Salvar
+    document.getElementById('edit-post-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const updateData = {
+        title: document.getElementById('title').value,
+        slug: document.getElementById('slug').value,
+        excerpt: document.getElementById('excerpt').value,
+        content: document.getElementById('content').value,
+        category_id: document.getElementById('category').value || null,
+        featured_image: document.getElementById('featured_image').value || null,
+        video_url: document.getElementById('video_url').value || null,
+        status: document.getElementById('status').value,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (updateData.status === 'published' && !updateData.published_at) {
+         updateData.published_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('posts')
+        .update(updateData)
+        .eq('id', postId);
+
+      if (error) {
+        alert('Erro ao atualizar: ' + error.message);
+      } else {
+        alert('Post atualizado com sucesso!');
+        window.location.href = '/admin/dashboard';
+      }
+    });
+
+    // Excluir
+    document.getElementById('delete-btn').addEventListener('click', async () => {
+      if (confirm('Tem certeza que deseja excluir este post?')) {
+        const { error } = await supabase
+          .from('posts')
+          .delete()
+          .eq('id', postId);
+
+        if (error) {
+          alert('Erro ao excluir: ' + error.message);
+        } else {
+          alert('Post excluído com sucesso!');
+          window.location.href = '/admin/dashboard';
+        }
+      }
+    });
+
+    loadPost();
+  </script>
+</AdminLayout>
+
+<style>
+  /* Mesmos estilos do novo.astro */
+  .editor-container { padding: 20px 0; }
+  .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+  .back-link { color: #666; font-size: 0.9rem; }
+  .admin-form { display: grid; grid-template-columns: 1fr 300px; gap: 30px; }
+  .form-group { margin-bottom: 20px; }
+  .form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
+  input[type="text"], input[type="url"], textarea, select {
+    width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; outline: none;
+  }
+  .sidebar-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+  .full-width { width: 100%; margin-top: 10px; }
+  .btn-danger { background-color: #fa5252; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; }
+</style>

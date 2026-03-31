@@ -1,0 +1,223 @@
+---
+// src/pages/blog/[slug].astro
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { supabase } from '../../lib/supabase.js';
+
+const { slug } = Astro.params;
+
+// Função para converter link do Google Drive em link direto de imagem
+function getImageUrl(url) {
+  if (!url || url === '') return 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?q=80&w=2070&auto=format&fit=crop';
+  const cleanUrl = url.trim();
+  if (cleanUrl.includes('drive.google.com')) {
+    let id = '';
+    if (cleanUrl.includes('/file/d/')) {
+      id = cleanUrl.split('/d/')[1]?.split('/')[0];
+    } else if (cleanUrl.includes('id=')) {
+      id = cleanUrl.split('id=')[1]?.split('&')[0];
+    }
+    return id ? `https://lh3.googleusercontent.com/d/${id}` : cleanUrl;
+  }
+  return cleanUrl;
+}
+
+// Buscar o post
+const { data: post } = await supabase
+  .from('posts')
+  .select(`
+    *,
+    categories (name, slug),
+    user_profiles (display_name, avatar_url)
+  `)
+  .eq('slug', slug)
+  .eq('status', 'published')
+  .maybeSingle();
+
+if (!post) {
+  return Astro.redirect('/404');
+}
+
+// Converter a URL do vídeo do YouTube para formato Embed
+let embedUrl = null;
+if (post.video_url) {
+  const url = post.video_url;
+  let id = '';
+  if (url.includes('v=')) id = url.split('v=')[1]?.split('&')[0];
+  else if (url.includes('youtu.be/')) id = url.split('youtu.be/')[1]?.split('?')[0];
+  else if (url.includes('youtube.com/embed/')) id = url.split('embed/')[1]?.split('?')[0];
+  else id = url.split('/').pop().split('?')[0]; // fallback
+  
+  if (id) {
+    embedUrl = `https://www.youtube.com/embed/${id}`;
+  }
+}
+---
+
+<BaseLayout title={post.title}>
+  <Header />
+  <article class="post-page">
+    <div class="container narrow-container">
+      <header class="post-header">
+        <div class="post-meta">
+          <span class="category">{post.categories?.name}</span>
+        </div>
+        <h1>{post.title}</h1>
+      </header>
+
+      <img src={getImageUrl(post.featured_image)} alt={post.title} class="featured-image" />
+
+      {post.excerpt && (
+        <div class="post-excerpt">
+          <p>{post.excerpt}</p>
+        </div>
+      )}
+
+      <div class="post-content" set:html={post.content} />
+
+      {embedUrl && (
+        <div class="video-container">
+          <iframe 
+            src={embedUrl} 
+            title="YouTube video player" 
+            frameborder="0" 
+            allowfullscreen="true"
+          ></iframe>
+        </div>
+      )}
+
+      <footer class="post-footer">
+        <div class="author-info-footer">
+          {post.user_profiles?.avatar_url ? (
+            <img src={post.user_profiles.avatar_url} alt={post.user_profiles.display_name} class="avatar" />
+          ) : (
+            <div class="avatar-placeholder"></div>
+          )}
+          <div class="author-details">
+            <span class="author">Por <strong>{post.user_profiles?.display_name || 'Administrador'}</strong></span>
+            <span class="date">{post.published_at ? new Date(post.published_at).toLocaleDateString() : ''}</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </article>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .post-page {
+    padding: 60px 0;
+  }
+  .narrow-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .featured-image {
+    width: 100%;
+    height: auto;
+    max-height: 450px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-bottom: 40px;
+  }
+  .post-header {
+    margin-bottom: 40px;
+    text-align: center;
+  }
+  .post-meta {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    align-items: center;
+  }
+  .category {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  h1 {
+    font-size: 2.5rem;
+    margin-bottom: 25px;
+    line-height: 1.2;
+    color: var(--text-dark);
+  }
+  .post-footer {
+    margin-top: 50px;
+    padding-top: 30px;
+    border-top: 1px solid #eee;
+  }
+  .author-info-footer {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  .author-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .author-details .author {
+    color: var(--text-dark);
+  }
+  .author-details .date {
+    font-size: 0.9rem;
+    color: #666;
+  }
+  .avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .avatar-placeholder {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #eee;
+  }
+  .post-excerpt {
+    font-size: 1.2rem;
+    line-height: 1.8;
+    color: #444;
+    font-style: italic;
+    border-left: 4px solid var(--primary);
+    padding-left: 20px;
+    margin-bottom: 40px;
+    white-space: pre-wrap;
+  }
+  .post-content {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #333;
+    white-space: pre-wrap;
+  }
+  .post-content :global(p) {
+    margin-bottom: 25px;
+  }
+  .post-content :global(h2) {
+    margin: 40px 0 20px;
+  }
+  .video-container {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    height: 0;
+    overflow: hidden;
+    max-width: 100%;
+    background: #000;
+    margin: 40px 0;
+    border-radius: 12px;
+  }
+  .video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+  @media (max-width: 768px) {
+    h1 { font-size: 1.8rem; }
+  }
+</style>

@@ -1,0 +1,101 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Login - Admin">
+  <div class="login-container">
+    <h1>Acesso Administrativo</h1>
+    
+    <form id="login-form">
+      <input 
+        type="email" 
+        id="email" 
+        placeholder="Email" 
+        required 
+      />
+      <input 
+        type="password" 
+        id="password" 
+        placeholder="Senha" 
+        required 
+      />
+      <button type="submit" class="btn-primary">Entrar</button>
+    </form>
+
+    <div id="error-message" style="display: none; color: red; margin-top: 10px;"></div>
+  </div>
+
+  <script>
+    import { supabase } from '../../lib/supabase.js';
+
+    const form = document.getElementById('login-form');
+    const errorDiv = document.getElementById('error-message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        errorDiv.textContent = error.message;
+        errorDiv.style.display = 'block';
+      } else {
+        // Salvar tokens nos cookies para o SSR (Astro.cookies) funcionar
+        const { session } = data;
+        const expires = new Date(Date.now() + session.expires_in * 1000).toUTCString();
+        document.cookie = `sb-access-token=${session.access_token}; path=/; expires=${expires}; SameSite=Lax;`;
+        document.cookie = `sb-refresh-token=${session.refresh_token}; path=/; expires=${expires}; SameSite=Lax;`;
+
+        window.location.href = '/admin/dashboard';
+      }
+    });
+  </script>
+</BaseLayout>
+
+<style>
+  .login-container {
+    max-width: 400px;
+    margin: 100px auto;
+    padding: 40px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  }
+
+  h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 1.5rem;
+    color: var(--secondary);
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  input {
+    padding: 12px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus {
+    border-color: var(--primary);
+  }
+
+  button {
+    margin-top: 10px;
+    font-weight: 600;
+  }
+</style>

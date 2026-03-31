@@ -1,0 +1,204 @@
+---
+// src/pages/admin/posts/novo.astro
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAuth, requirePermission } from '../../../lib/permissions.js';
+
+const { authorized, user } = await requireAuth(Astro.cookies);
+
+if (!authorized) {
+  return Astro.redirect('/admin/login');
+}
+
+// Opcional: Verificar permissão específica
+// try {
+//   await requirePermission(user.id, 'posts', 'create');
+// } catch (e) {
+//   return Astro.redirect('/admin/dashboard?error=permission_denied');
+// }
+---
+
+<AdminLayout title="Novo Post">
+  <div class="editor-container">
+    <header class="editor-header">
+      <h1>Criar Novo Post</h1>
+      <a href="/admin/dashboard" class="back-link">&larr; Voltar</a>
+    </header>
+
+    <form id="post-form" class="admin-form">
+      <div class="form-main">
+        <div class="form-group">
+          <label for="title">Título do Post</label>
+          <input type="text" id="title" placeholder="Ex: A importância da solidariedade" required />
+        </div>
+
+        <div class="form-group">
+          <label for="slug">Slug (URL amigável)</label>
+          <input type="text" id="slug" placeholder="a-importancia-da-solidariedade" required />
+        </div>
+
+        <div class="form-group">
+          <label for="excerpt">Resumo / Introdução</label>
+          <textarea id="excerpt" rows="3" placeholder="Uma breve descrição que aparece na listagem..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="content">Conteúdo (HTML aceito)</label>
+          <textarea id="content" rows="15" required placeholder="Escreva aqui o seu artigo..."></textarea>
+        </div>
+      </div>
+
+      <aside class="form-sidebar">
+        <div class="sidebar-card">
+          <h3>Publicação</h3>
+          <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status">
+              <option value="draft">Rascunho</option>
+              <option value="published">Publicado</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-primary full-width">Salvar Post</button>
+        </div>
+
+        <div class="sidebar-card">
+          <h3>Configurações</h3>
+          <div class="form-group">
+            <label for="category">Categoria</label>
+            <select id="category" required>
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="featured_image">URL da Imagem de Capa</label>
+            <input type="url" id="featured_image" placeholder="https://exemplo.com/imagem.jpg" />
+          </div>
+          <div class="form-group">
+            <label for="video_url">URL do Vídeo (YouTube)</label>
+            <input type="url" id="video_url" placeholder="https://www.youtube.com/watch?v=..." />
+          </div>
+        </div>
+      </aside>
+    </form>
+  </div>
+
+  <script>
+    import { supabase } from '../../../lib/supabase.js';
+
+    // Auto-slug
+    const titleInput = document.getElementById('title');
+    const slugInput = document.getElementById('slug');
+
+    titleInput.addEventListener('input', (e) => {
+      const slug = e.target.value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      slugInput.value = slug;
+    });
+
+    async function loadCategories() {
+      const { data } = await supabase
+        .from('categories')
+        .select('id, name')
+        .order('name');
+
+      if (data) {
+        const select = document.getElementById('category');
+        data.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat.id;
+          option.textContent = cat.name;
+          select.appendChild(option);
+        });
+      }
+    }
+
+    // Salvar
+    document.getElementById('post-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const postData = {
+        title: document.getElementById('title').value,
+        slug: document.getElementById('slug').value,
+        excerpt: document.getElementById('excerpt').value,
+        content: document.getElementById('content').value,
+        category_id: document.getElementById('category').value || null,
+        featured_image: document.getElementById('featured_image').value || null,
+        video_url: document.getElementById('video_url').value || null,
+        status: document.getElementById('status').value,
+        author_id: user.id,
+        published_at: document.getElementById('status').value === 'published' 
+          ? new Date().toISOString() 
+          : null,
+      };
+
+      const { data, error } = await supabase
+        .from('posts')
+        .insert([postData])
+        .select();
+
+      if (error) {
+        alert('Erro ao salvar: ' + error.message);
+      } else {
+        alert('Post criado com sucesso!');
+        window.location.href = '/admin/dashboard';
+      }
+    });
+
+    loadCategories();
+  </script>
+</AdminLayout>
+
+<style>
+  .editor-container { padding: 20px 0; }
+  .editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+  .back-link { color: #666; font-size: 0.9rem; }
+  .admin-form {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 30px;
+  }
+  .form-group { margin-bottom: 20px; }
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  input[type="text"], input[type="url"], textarea, select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: inherit;
+    outline: none;
+  }
+  input:focus, textarea:focus { border-color: var(--primary); }
+  .sidebar-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+  }
+  .sidebar-card h3 {
+    font-size: 1rem;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+  }
+  .full-width { width: 100%; margin-top: 10px; }
+
+  @media (max-width: 900px) {
+    .admin-form { grid-template-columns: 1fr; }
+  }
+</style>

@@ -1,0 +1,75 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout title="Política de Privacidade" description="Conheça nossa política de privacidade e como tratamos seus dados.">
+  <Header />
+  
+  <main class="page-container">
+    <section class="banner-small">
+      <div class="overlay"></div>
+      <img src="/images/politica-banner.png" alt="Política de Privacidade" class="hero-img" />
+      <div class="container relative">
+        <h1>Política de Privacidade</h1>
+      </div>
+    </section>
+
+    <section class="content-section">
+      <div class="container narrow-container">
+        <div class="policy-card animate-up">
+          <p>A sua privacidade é importante para nós. É política da <strong>Casa da Caridade</strong> respeitar a sua privacidade em relação a qualquer informação sua que possamos coletar no site Casa da Caridade, e outros sites que possuímos e operamos.</p>
+          
+          <h3>1. Coleta de Informações</h3>
+          <p>Solicitamos informações pessoais apenas quando realmente precisamos delas para lhe fornecer um serviço. Fazemo-lo por meios justos e legais, com o seu conhecimento e consentimento. Também informamos por que estamos coletando e como será usado.</p>
+          
+          <h3>2. Uso de Dados</h3>
+          <p>Apenas retemos as informações coletadas pelo tempo necessário para fornecer o serviço solicitado. Quando armazenamos dados, protegemos dentro de meios comercialmente aceitáveis para evitar perdas e roubos, bem como acesso, divulgação, cópia, uso ou modificação não autorizados.</p>
+          
+          <h3>3. Compartilhamento de Informações</h3>
+          <p>Não compartilhamos informações de identificação pessoal publicamente ou com terceiros, exceto quando exigido por lei.</p>
+          
+          <h3>4. Cookies</h3>
+          <p>Utilizamos cookies para melhorar sua experiência. Você é livre para recusar a nossa solicitação de informações pessoais, entendendo que talvez não possamos fornecer alguns dos serviços desejados.</p>
+          
+          <h3>5. Compromisso do Usuário</h3>
+          <p>O usuário se compromete a fazer uso adequado dos conteúdos e da informação que a Casa da Caridade oferece no site e com caráter enunciativo, mas não limitativo.</p>
+          
+          <p class="updated-at"><em>Esta política é efetiva a partir de Março de 2026.</em></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<style>
+  .page-container { min-height: 100vh; }
+  .banner-small {
+    position: relative;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-align: center;
+    overflow: hidden;
+  }
+  .hero-img { position: absolute; top:0; left:0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
+  .overlay { position: absolute; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 0; }
+  .relative { position: relative; z-index: 1; }
+  h1 { font-size: 2.5rem; margin: 0; }
+
+  .content-section { padding: 60px 0; background: #f8f9fa; }
+  .narrow-container { max-width: 800px; margin: 0 auto; }
+  .policy-card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); color: #444; }
+  
+  h3 { color: var(--secondary); margin: 30px 0 15px; font-size: 1.3rem; }
+  p { line-height: 1.7; margin-bottom: 20px; }
+  .updated-at { margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; font-size: 0.9rem; color: #888; }
+
+  .animate-up { animation: fadeInUp 0.6s ease-out; }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+</style>

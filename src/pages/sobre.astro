@@ -1,0 +1,144 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout title="Sobre Nós" description="Saiba mais sobre o propósito e a missão da Casa da Caridade.">
+  <Header />
+  
+  <main class="about-page">
+    <section class="about-hero">
+      <div class="overlay"></div>
+      <img src="/images/sobre-banner.png" alt="Sobre a Casa da Caridade" class="hero-img" />
+      <div class="container container-hero">
+        <h1>Sobre Nós</h1>
+        <p class="subtitle">Aprendizado, Reflexão e Crescimento Espiritual</p>
+      </div>
+    </section>
+
+    <section class="about-content">
+      <div class="container narrow-container">
+        <div class="card about-card animate-up">
+          <p>A Casa da Caridade nasceu com o propósito de levar ao público conteúdos sobre a Doutrina Espírita de forma simples, acessível e prática. Em um mundo cada vez mais acelerado, sentimos a necessidade de criar um espaço onde o conhecimento espiritual pudesse ser compartilhado de maneira clara, objetiva e aplicável ao dia a dia.</p>
+          
+          <p>Nosso blog foi idealizado para ajudar pessoas que buscam compreender melhor temas relacionados à espiritualidade, à vida após a morte, às leis divinas e ao processo de evolução do espírito. Aqui, você encontrará reflexões, explicações e orientações baseadas nos princípios espíritas, sempre com linguagem leve e direta.</p>
+          
+          <p>Acreditamos que o conhecimento transforma, consola e fortalece. Por isso, nosso conteúdo é pensado para apoiar tanto aqueles que estão iniciando seus estudos quanto os que já possuem afinidade com a doutrina, mas desejam aprofundar sua compreensão de forma prática.</p>
+          
+          <p>A Casa da Caridade também se inspira no valor do amor ao próximo, da empatia e da caridade — não apenas como conceitos, mas como atitudes que podem ser vividas diariamente. Nosso objetivo é contribuir para uma vida mais consciente, equilibrada e alinhada com os ensinamentos espirituais.</p>
+          
+          <p><strong>Seja bem-vindo(a) a este espaço de aprendizado, reflexão e crescimento espiritual e material na visão espírita.</strong></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<style>
+  .about-page {
+    min-height: 100vh;
+  }
+  
+  .about-hero {
+    position: relative;
+    height: 350px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: white;
+    overflow: hidden;
+  }
+  
+  .hero-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -1;
+  }
+  
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6));
+    z-index: 0;
+  }
+  
+  .container-hero {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .about-hero h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  }
+  
+  .subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    font-weight: 400;
+  }
+  
+  .about-content {
+    padding: 60px 0;
+    background: #f8f9fa;
+  }
+  
+  .narrow-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .about-card {
+    background: white;
+    padding: 50px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+  }
+  
+  .about-card p {
+    font-size: 1.15rem;
+    line-height: 1.8;
+    color: #444;
+    margin-bottom: 25px;
+  }
+  
+  .about-card p:last-child {
+    margin-bottom: 0;
+    color: var(--secondary);
+    font-size: 1.2rem;
+  }
+  
+  .animate-up {
+    animation: fadeInUp 0.8s ease-out;
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .about-hero { height: 250px; }
+    .about-hero h1 { font-size: 2.5rem; }
+    .about-card { padding: 30px; }
+  }
+</style>

@@ -1,0 +1,61 @@
+---
+// src/components/Footer.astro
+const year = new Date().getFullYear();
+---
+<footer class="main-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-info">
+        <h3>Casa da Caridade</h3>
+        <p>Um blog dedicado ao compartilhamento de conhecimento e amor ao próximo.</p>
+      </div>
+      <div class="footer-links">
+        <h4>Links</h4>
+        <ul>
+          <li><a href="/home">Home</a></li>
+          <li><a href="/sobre">Sobre Nós</a></li>
+          <li><a href="/contato">Contato</a></li>
+          <li><a href="/politica">Política de Privacidade</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="copyright">
+      <p>&copy; {year} Casa da Caridade. Todos os direitos reservados.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .main-footer {
+    background: #212529;
+    color: #f8f9fa;
+    padding: 60px 0 20px;
+    margin-top: 80px;
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 40px;
+    margin-bottom: 40px;
+  }
+  h3, h4 {
+    margin-bottom: 20px;
+    color: var(--primary);
+  }
+  ul {
+    list-style: none;
+  }
+  ul li {
+    margin-bottom: 10px;
+  }
+  ul li a:hover {
+    text-decoration: underline;
+  }
+  .copyright {
+    text-align: center;
+    border-top: 1px solid #444;
+    padding-top: 20px;
+    font-size: 0.9rem;
+    color: #888;
+  }
+</style>

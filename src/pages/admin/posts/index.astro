@@ -1,0 +1,135 @@
+---
+// src/pages/admin/posts/index.astro
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAuth } from '../../../lib/permissions.js';
+
+const { authorized } = await requireAuth(Astro.cookies);
+
+if (!authorized) {
+  return Astro.redirect('/admin/login');
+}
+---
+
+<AdminLayout title="Gerenciar Posts">
+  <div class="admin-container">
+    <header class="admin-header">
+      <h1>Gerenciar Posts</h1>
+      <div class="header-actions">
+        <a href="/admin/posts/novo" class="btn-primary">Novo Post</a>
+        <a href="/admin/dashboard" class="back-link">&larr; Voltar ao Dashboard</a>
+      </div>
+    </header>
+
+    <div id="posts-manager" class="admin-table-container">
+      Carregando posts...
+    </div>
+  </div>
+
+  <script>
+    import { supabase } from '../../../lib/supabase.js';
+
+    async function loadAllPosts() {
+      const { data: posts, error } = await supabase
+        .from('posts')
+        .select(`
+          id, 
+          title, 
+          status, 
+          created_at,
+          categories (name)
+        `)
+        .order('created_at', { ascending: false });
+
+      const container = document.getElementById('posts-manager');
+
+      if (error) {
+        container.innerHTML = `<p class="error">Erro ao carregar: ${error.message}</p>`;
+        return;
+      }
+
+      if (!posts || posts.length === 0) {
+        container.innerHTML = '<p>Nenhum post encontrado. Comece a criar!</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Categoria</th>
+              <th>Status</th>
+              <th>Data de Criação</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${posts.map(post => `
+              <tr>
+                <td><strong>${post.title}</strong></td>
+                <td>${post.categories?.name || '---'}</td>
+                <td><span class="status-badge ${post.status}">${post.status === 'published' ? 'Publicado' : 'Rascunho'}</span></td>
+                <td>${new Date(post.created_at).toLocaleDateString()}</td>
+                <td>
+                  <a href="/admin/posts/editar/${post.id}" class="btn-edit">Editar</a>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    loadAllPosts();
+  </script>
+</AdminLayout>
+
+<style>
+  .admin-container { padding: 20px 0; }
+  .admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .header-actions { display: flex; align-items: center; gap: 20px; }
+  .back-link { color: #666; font-size: 0.9rem; }
+  
+  .admin-table-container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    overflow-x: auto;
+  }
+
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .admin-table th, .admin-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+  }
+  .admin-table th { background: #f8f9fa; font-weight: 600; }
+
+  .status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .status-badge.published { background: #e6fcf5; color: #0ca678; }
+  .status-badge.draft { background: #fff4e6; color: #f76707; }
+
+  .btn-edit {
+    color: var(--secondary);
+    font-weight: 600;
+    text-decoration: underline;
+  }
+  .error { color: #fa5252; }
+</style>
