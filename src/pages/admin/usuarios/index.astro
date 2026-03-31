@@ -6,10 +6,10 @@ const { authorized } = await requireAuth(Astro.cookies);
 if (!authorized) return Astro.redirect('/admin/login');
 ---
 
-<AdminLayout title="Gestão de Usuários">
+<AdminLayout title="Gestão de Usuários (Atualizado)">
   <div class="users-page">
     <header class="page-header">
-      <h1>Gestão de Usuários</h1>
+      <h1>Gestão de Usuários <small style="font-size: 0.5em; opacity: 0.5;">(Nova Versão)</small></h1>
       <p>Cadastre e gerencie os administradores do sistema.</p>
     </header>
 
