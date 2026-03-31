@@ -60,7 +60,7 @@ if (!authorized) {
               <th>Categoria</th>
               <th>Status</th>
               <th>Data de Criação</th>
-              <th>Ações</th>
+              <th style="text-align: right;">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -70,8 +70,11 @@ if (!authorized) {
                 <td>${post.categories?.name || '---'}</td>
                 <td><span class="status-badge ${post.status}">${post.status === 'published' ? 'Publicado' : 'Rascunho'}</span></td>
                 <td>${new Date(post.created_at).toLocaleDateString()}</td>
-                <td>
-                  <a href="/admin/posts/editar/${post.id}" class="btn-edit">Editar</a>
+                <td style="text-align: right;">
+                  <div class="table-actions">
+                    <a href="/admin/posts/editar/${post.id}" class="btn-edit">Editar</a>
+                    <button class="btn-delete" onclick="deletePost('${post.id}', '${post.title.replace(/'/g, "\\'")}')">Excluir</button>
+                  </div>
                 </td>
               </tr>
             `).join('')}
@@ -79,6 +82,19 @@ if (!authorized) {
         </table>
       `;
     }
+
+    window.deletePost = async (id, title) => {
+      if (!confirm(`Tem certeza que deseja excluir o post "${title}"?`)) return;
+
+      const { error } = await supabase.from('posts').delete().eq('id', id);
+
+      if (error) {
+        alert('Erro ao excluir: ' + error.message);
+      } else {
+        alert('Post excluído com sucesso!');
+        loadAllPosts();
+      }
+    };
 
     loadAllPosts();
   </script>
@@ -126,15 +142,16 @@ if (!authorized) {
 
   /* Faz o Título quebrar a linha e ter espaço */
   .admin-table td:nth-child(1) {
-    min-width: 280px;
+    min-width: 250px;
     font-size: 1.05rem;
     line-height: 1.4;
     color: #1a1a1a;
   }
-  
-  .admin-table td:nth-child(5), 
-  .admin-table th:nth-child(5) {
-    text-align: right;
+
+  .table-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
   }
 
   .status-badge {
@@ -163,5 +180,23 @@ if (!authorized) {
     background-color: #0056b3;
     text-decoration: none;
   }
+
+  .btn-delete {
+    background-color: #fff1f0;
+    border: 1px solid #ffa39e;
+    color: #cf1322;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-delete:hover {
+    background-color: #cf1322;
+    color: white;
+    border-color: #cf1322;
+  }
+
   .error { color: #fa5252; }
 </style>
