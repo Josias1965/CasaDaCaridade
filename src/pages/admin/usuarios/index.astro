@@ -6,10 +6,10 @@ const { authorized } = await requireAuth(Astro.cookies);
 if (!authorized) return Astro.redirect('/admin/login');
 ---
 
-<AdminLayout title="Gestão de Usuários (v2.2)">
+<AdminLayout title="Gestão de Usuários (v2.4)">
   <div class="users-page">
     <header class="page-header">
-      <h1>Painel de Acessos <small style="font-size: 0.5em; opacity: 0.5;">(Ativo)</small></h1>
+      <h1>Painel de Acessos <small style="font-size: 0.5em; opacity: 0.5;">(v2.4)</small></h1>
       <p>Gerencie quem pode publicar e editar no sistema.</p>
     </header>
 
@@ -29,7 +29,9 @@ if (!authorized) return Astro.redirect('/admin/login');
           </div>
           <div class="form-group">
             <label for="edit-role-select">Nível de Permissão</label>
-            <select id="edit-role-select" required></select>
+            <select id="edit-role-select" required>
+              <option value="" disabled selected>Carregando permissões...</option>
+            </select>
           </div>
           <div class="modal-actions">
             <button type="button" id="close-modal" class="btn-secondary">Cancelar</button>
@@ -46,23 +48,23 @@ if (!authorized) return Astro.redirect('/admin/login');
           <div class="form-grid">
             <div class="form-group">
               <label for="display_name">Nome</label>
-              <input type="text" id="display_name" required placeholder="Ex: Josias" />
+              <input type="text" id="display_name" name="display_name" required placeholder="Ex: Josias" />
             </div>
             <div class="form-group">
               <label for="email">E-mail</label>
-              <input type="email" id="email" required placeholder="exemplo@gmail.com" />
+              <input type="email" id="email" name="email" required placeholder="exemplo@gmail.com" />
             </div>
             <div class="form-group">
               <label for="role">Permissão</label>
-              <select id="role" required>
-                <option value="Admin">Administrador</option>
-                <option value="Editor">Editor (Publica)</option>
-                <option value="Author">Autor (Rascunho)</option>
+              <select id="role" name="role" required>
+                <option value="admin" selected>Administrador</option>
+                <option value="editor">Editor (Publica)</option>
+                <option value="author">Autor (Rascunho)</option>
               </select>
             </div>
             <div class="form-group">
               <label for="password">Senha Temporária</label>
-              <input type="password" id="password" required minlength="6" />
+              <input type="password" id="password" name="password" required minlength="6" />
             </div>
             <div class="form-actions">
               <button type="submit" class="btn-primary highlight">Registrar</button>
@@ -95,6 +97,27 @@ if (!authorized) return Astro.redirect('/admin/login');
 
     let allRoles = [];
 
+    async function loadRoles() {
+      // 1. Tentar buscar roles do banco
+      const { data, error } = await supabase.from('roles').select('id, name');
+      
+      if (!error && data && data.length > 0) {
+        allRoles = data.filter(r => r.id && r.name);
+      } else if (!error && (!data || data.length === 0)) {
+        // Tabela roles está vazia! Vamos tentar injetar o registro básico
+        console.warn("Tabela roles vazia. Tentando autocompletar...");
+        const defaultRoles = [
+          { name: 'admin', permissions: { posts: ["create", "read", "update", "delete"], users: ["manage"] } },
+          { name: 'editor', permissions: { posts: ["create", "read", "update"], users: [] } },
+          { name: 'author', permissions: { posts: ["create", "read"], users: [] } }
+        ];
+        const { data: inserted } = await supabase.from('roles').insert(defaultRoles).select('id, name');
+        if (inserted) allRoles = inserted;
+      } else {
+        console.error("Erro RLS ao buscar roles:", error);
+      }
+    }
+
     async function loadUsers() {
       // 1. Carregamos os perfis
       const { data: profiles, error: pError } = await supabase
@@ -107,13 +130,19 @@ if (!authorized) return Astro.redirect('/admin/login');
         return;
       }
 
-      // 2. BUSCA ATIVA DE ROLES: Buscamos os 3 tipos especificamente para garantir que apareçam
-      const { data: rolesData } = await supabase
-        .from('roles')
-        .select('*')
-        .in('name', ['Admin', 'Editor', 'Author']);
-      
-      if (rolesData) allRoles = rolesData;
+      // 2. Carrega roles se ainda não carregados
+      if (allRoles.length === 0) await loadRoles();
+
+      // 3. Fallback inteligente: Extrair das relacoes, caso a busca nativa de roles fudeu
+      profiles.forEach(p => {
+        // p.roles pode vir como array em algumas estruturas do Supabase
+        const roleObj = Array.isArray(p.roles) ? p.roles[0] : p.roles;
+        if (roleObj && roleObj.id && roleObj.name) {
+          if (!allRoles.find(r => r.id === roleObj.id)) {
+            allRoles.push({ id: roleObj.id, name: roleObj.name });
+          }
+        }
+      });
 
       tableContainer.innerHTML = `
         <table class="admin-table">
@@ -121,25 +150,25 @@ if (!authorized) return Astro.redirect('/admin/login');
             <tr>
               <th style="width: 25%">Nome</th>
               <th style="width: 35%">E-mail</th>
-              <th style="width: 25%">Permissão</th>
-              <th style="width: 15%; text-align: right">Ações</th>
+              <th style="width: 20%">Permissão</th>
+              <th style="width: 20%; text-align: right">Ações</th>
             </tr>
           </thead>
           <tbody>
             ${profiles.map(u => {
-              const roleName = u.roles?.name || 'Admin';
-              const displayRole = roleName === 'Admin' ? 'Administrador' : roleName === 'Editor' ? 'Editor' : 'Autor';
+              const roleObj = Array.isArray(u.roles) ? u.roles[0] : u.roles;
+              const roleNameRaw = roleObj?.name || 'admin';
+              const roleName = roleNameRaw.toLowerCase();
+              const displayRole = roleName === 'admin' ? 'Administrador' : roleName === 'editor' ? 'Editor' : 'Autor';
+              const displayEmail = u.email || '⚠️ Sem E-mail';
               return `
               <tr>
-                <td><strong>${u.display_name || u.email}</strong></td>
-                <td class="email-text">${u.email}</td>
-                <td><span class="badge ${roleName.toLowerCase()}">${displayRole}</span></td>
-                <td style="text-align: right">
-                  <select class="action-select-box" data-user='${JSON.stringify(u)}'>
-                    <option value="" disabled selected>Opções ▾</option>
-                    <option value="edit">✏️ Detalhes</option>
-                    <option value="remove">🗑️ Remover</option>
-                  </select>
+                <td><strong>${u.display_name || 'Usuário'}</strong></td>
+                <td class="email-text">${displayEmail}</td>
+                <td><span class="badge ${roleName}">${displayRole}</span></td>
+                <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                  <button type="button" class="btn-secondary action-edit" style="padding: 6px 10px; font-size: 0.8rem;" data-user='${JSON.stringify(u).replace(/'/g, "&apos;")}'>✏️ Editar</button>
+                  <button type="button" class="btn-secondary action-remove" style="padding: 6px 10px; font-size: 0.8rem; color: #dc3545;" data-user='${JSON.stringify(u).replace(/'/g, "&apos;")}'>🗑️ Remover</button>
                 </td>
               </tr>
             `}).join('')}
@@ -147,141 +176,174 @@ if (!authorized) return Astro.redirect('/admin/login');
         </table>
       `;
 
-      // Listeners...
-      document.querySelectorAll('.action-select-box').forEach(select => {
-        select.addEventListener('change', (e) => {
-          const action = e.target.value;
-          const user = JSON.parse(e.target.dataset.user);
-          if (action === 'remove') {
-            if (confirm(`Remover permanentemente ${user.email}?`)) {
-               supabase.from('user_profiles').delete().eq('id', user.id).then(() => loadUsers());
+      // Delegação de eventos para os novos botões
+      document.querySelectorAll('.action-remove').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const user = JSON.parse(e.currentTarget.dataset.user);
+          const confirmed = confirm(`Remover permanentemente ${user.display_name || user.email || 'este usuário'}?`);
+          if (confirmed) {
+            const { data, error } = await supabase.from('user_profiles').delete().eq('id', user.id).select();
+            if (error) {
+              alert("Erro ao remover: " + error.message);
+            } else if (!data || data.length === 0) {
+              alert("Remoção FALHOU! O Supabase bloqueou a deleção (política RLS no banco restringe o DELETE).");
+            } else {
+              alert("Usuário removido com sucesso!");
+              loadUsers();
             }
-          } else if (action === 'edit') {
-             openModal(user);
           }
-          e.target.value = "";
+        });
+      });
+
+      document.querySelectorAll('.action-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const user = JSON.parse(e.currentTarget.dataset.user);
+          openModal(user);
         });
       });
     }
 
     async function openModal(user) {
       document.getElementById('edit-id').value = user.id;
-      document.getElementById('edit-email').value = user.email;
+      document.getElementById('edit-email').value = user.email || 'null';
       document.getElementById('edit-name').value = user.display_name || '';
       
       const roleSelect = document.getElementById('edit-role-select');
-      const translations = { 'Admin': 'Administrador', 'Editor': 'Editor', 'Author': 'Autor' };
+      const translations = { 'admin': 'Administrador', 'editor': 'Editor', 'author': 'Autor', 'Admin': 'Administrador', 'Editor': 'Editor', 'Author': 'Autor' };
 
-      // Se por algum motivo o loadUsers não pegou os roles, tentamos novamente aqui
-      if (allRoles.length < 3) {
-        const { data } = await supabase.from('roles').select('*').in('name', ['Admin', 'Editor', 'Author']);
-        if (data) allRoles = data;
+      if (allRoles.length === 0) await loadRoles();
+
+      if (allRoles.length > 0) {
+        roleSelect.innerHTML = allRoles.map(r => {
+           const translated = translations[r.name] || translations[r.name.toLowerCase()] || r.name;
+           return `<option value="${r.id}" ${user.role_id === r.id ? 'selected' : ''}>${translated}</option>`;
+        }).join('');
+      } else {
+        roleSelect.innerHTML = '<option disabled>⚠️ A tabela roles no banco está vazia ou bloqueada.</option>';
       }
-
-      roleSelect.innerHTML = allRoles.map(r => `
-        <option value="${r.id}" ${user.role_id === r.id ? 'selected' : ''}>
-          ${translations[r.name] || r.name}
-        </option>
-      `).join('');
       
       editModal.style.display = 'flex';
     }
 
-    closeBtn.onclick = () => editModal.style.display = 'none';
+    closeBtn.addEventListener('click', () => {
+      editModal.style.display = 'none';
+    });
 
-    editForm.onsubmit = async (e) => {
+    editForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('edit-id').value;
       const display_name = document.getElementById('edit-name').value;
       const role_id = document.getElementById('edit-role-select').value;
 
-      const { error } = await supabase.from('user_profiles').update({ display_name, role_id }).eq('id', id);
-      if (error) alert("Erro: " + error.message);
-      else {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ display_name, role_id })
+        .eq('id', id);
+
+      if (error) {
+        alert("Erro ao salvar: " + error.message);
+      } else {
+        alert("Alterações salvas com sucesso!");
         editModal.style.display = 'none';
         loadUsers();
       }
-    };
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const displayName = document.getElementById('display_name').value;
-      const roleName = document.getElementById('role').value;
-
       statusMsg.style.display = 'block';
-      statusMsg.style.background = '#f8f9fa';
-      statusMsg.textContent = 'Processando...';
+      statusMsg.style.backgroundColor = '#f8f9fa';
+      statusMsg.textContent = 'Processando registro...';
 
-      const { data: roleData } = await supabase.from('roles').select('id').eq('name', roleName).single();
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email, password, options: { data: { display_name: displayName } }
-      });
+      const formData = new FormData(form);
+      const email = formData.get('email');
+      const password = formData.get('password');
+      const display_name = formData.get('display_name');
+      const roleName = formData.get('role');
 
-      if (authError) {
-        statusMsg.style.background = '#fff0f0';
-        statusMsg.textContent = authError.message;
-        return;
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (authError) throw authError;
+
+        if (authData.user) {
+        if (authData.user) {
+          if (allRoles.length === 0) await loadRoles();
+          // Fallback case-insensitive se RLS bloquear a tabela (tentativa pelo nome)
+          const role = allRoles.find(r => r.name.toLowerCase() === roleName.toLowerCase());
+          const theRoleID = role?.id;
+          
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .update({ 
+              display_name, 
+              role_id: theRoleID 
+            })
+            .eq('id', authData.user.id);
+
+          if (profileError) {
+            // Se o update falhar, tentamos insert (fallback para novos triggers)
+            await supabase.from('user_profiles').upsert({
+              id: authData.user.id,
+              display_name,
+              email,
+              role_id: role?.id
+            });
+          }
+
+          statusMsg.style.backgroundColor = '#d4edda';
+          statusMsg.textContent = 'Usuário registrado com sucesso!';
+          form.reset();
+          setTimeout(loadUsers, 1500);
+        }
+      } catch (err) {
+        statusMsg.style.backgroundColor = '#f8d7da';
+        statusMsg.textContent = 'Erro: ' + err.message;
       }
-
-      if (authData.user) {
-        await supabase.from('user_profiles').insert([{
-           id: authData.user.id, display_name: displayName, email: email, role_id: roleData.id
-        }]);
-      }
-
-      statusMsg.style.background = '#e7f5ff';
-      statusMsg.textContent = 'Conta criada!';
-      form.reset();
-      setTimeout(loadUsers, 1000);
     });
 
     loadUsers();
   </script>
+
+  <style>
+    .users-page { padding: 20px; max-width: 1200px; margin: 0 auto; }
+    .page-header { margin-bottom: 30px; border-left: 5px solid #000; padding-left: 20px; }
+    .page-header h1 { font-size: 1.8rem; margin: 0; }
+    .page-header p { color: #666; margin: 5px 0 0; }
+
+    .admin-card { background: #fff; border-radius: 12px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 30px; border: 1px solid #eee; }
+    .admin-card h3 { margin-top: 0; margin-bottom: 20px; font-size: 1.1rem; color: #333; display: flex; align-items: center; gap: 10px; }
+
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: flex-end; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-weight: 600; font-size: 0.85rem; color: #555; }
+    .form-group input, .form-group select { padding: 10px; border: 2px solid #f0f0f0; border-radius: 8px; font-size: 0.95rem; transition: all 0.2s; }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: #000; background: #fff; }
+
+    .btn-primary { background: #000; color: #fff; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary:hover { background: #333; transform: translateY(-1px); }
+    .btn-secondary { background: #f0f0f0; color: #333; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+
+    .admin-table { width: 100%; border-collapse: collapse; }
+    .admin-table th { text-align: left; padding: 12px; border-bottom: 2px solid #eee; color: #999; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
+    .admin-table td { padding: 15px 12px; border-bottom: 1px solid #f8f8f8; vertical-align: middle; }
+
+    .email-text { color: #666; font-family: 'Monaco', 'Consolas', monospace; font-size: 0.85rem; }
+    .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+    .badge.admin { background: #fee2e2; color: #991b1b; }
+    .badge.editor { background: #dcfce7; color: #166534; }
+    .badge.author { background: #fef9c3; color: #854d0e; }
+
+    .action-select-box { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; cursor: pointer; background: #fff; }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
+    .modal-content { width: 90%; max-width: 450px; animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes modalIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
+
+    #status-message { transition: all 0.3s ease; }
+  </style>
 </AdminLayout>
-
-<style>
-  .users-page { padding: 20px 0; }
-  .page-header { margin-bottom: 30px; }
-  .page-header h1 { font-size: 1.8rem; margin-bottom: 5px; color: #1a1b1e; }
-  .page-header p { color: #868e96; }
-
-  .registration-section { margin-bottom: 30px; }
-  .admin-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #dee2e6; }
-  .admin-card h3 { margin-bottom: 20px; font-size: 1rem; border-bottom: 1px solid #f1f3f5; padding-bottom: 10px; color: #495057; text-transform: uppercase; letter-spacing: 0.5px; }
-
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 12px; align-items: flex-end; }
-  .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.8rem; color: #495057; }
-  .form-group input, .form-group select { 
-    width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; 
-    background: #fff; font-size: 0.9rem; transition: border-color 0.2s;
-  }
-  .form-group input:focus { border-color: var(--primary); outline: none; }
-  .form-group input:disabled { background: #f8f9fa; cursor: not-allowed; }
-
-  .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
-  .btn-secondary { background: #f1f3f5; color: #495057; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
-
-  .admin-table { width: 100%; border-collapse: collapse; }
-  .admin-table th { text-align: left; background: #f8f9fa; padding: 12px; border-bottom: 2px solid #dee2e6; color: #495057; font-size: 0.75rem; text-transform: uppercase; }
-  .admin-table td { padding: 12px; border-bottom: 1px solid #f1f3f5; font-size: 0.9rem; }
-  
-  .email-text { color: #868e96; font-size: 0.85rem; font-family: monospace; }
-  .badge { padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
-  .badge.admin { background: #e7f5ff; color: #1c7ed6; }
-  .badge.editor { background: #fff4e6; color: #d9480f; }
-  .badge.author { background: #f3f0ff; color: #5f3dc4; }
-
-  .action-select-box { padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.8rem; background: #fff; cursor: pointer; }
-
-  /* Modal Overlay */
-  .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px); }
-  .modal-content { width: 450px; background: white; border-radius: 12px; overflow: hidden; }
-  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #f1f3f5; }
-
-  @media (max-width: 1024px) {
-    .form-grid { grid-template-columns: 1fr 1fr; }
-    .form-actions { grid-column: span 2; }
-  }
-</style>
