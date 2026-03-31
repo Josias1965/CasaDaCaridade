@@ -9,8 +9,9 @@ const { slug } = Astro.params;
 
 // Função para converter link do Google Drive em link direto de imagem
 function getImageUrl(url) {
-  if (!url || url === '') return 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?q=80&w=2070&auto=format&fit=crop';
-  const cleanUrl = url.trim();
+  if (!url || url === '' || url.includes('exemplo.com')) {
+    return 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=2070&auto=format&fit=crop';
+  }
   if (cleanUrl.includes('drive.google.com')) {
     let id = '';
     if (cleanUrl.includes('/file/d/')) {

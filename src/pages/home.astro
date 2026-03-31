@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase.js';
 // Função para converter link do Google Drive em link direto de imagem
 function getImageUrl(url) {
   if (!url || url === '' || url.includes('exemplo.com')) {
-    return 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80';
+    return 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=2070&auto=format&fit=crop';
   }
   
   const cleanUrl = url.trim();
