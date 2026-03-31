@@ -270,7 +270,6 @@ if (!authorized) return Astro.redirect('/admin/login');
         if (authError) throw authError;
 
         if (authData.user) {
-        if (authData.user) {
           if (allRoles.length === 0) await loadRoles();
           // Fallback case-insensitive se RLS bloquear a tabela (tentativa pelo nome)
           const role = allRoles.find(r => r.name.toLowerCase() === roleName.toLowerCase());
