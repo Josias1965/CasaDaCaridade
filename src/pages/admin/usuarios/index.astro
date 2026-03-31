@@ -180,15 +180,19 @@ if (!authorized) return Astro.redirect('/admin/login');
       document.querySelectorAll('.action-remove').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           const user = JSON.parse(e.currentTarget.dataset.user);
-          const confirmed = confirm(`Remover permanentemente ${user.display_name || user.email || 'este usuário'}?`);
+          const confirmed = confirm(`Remover permanentemente ${user.display_name || user.email || 'este usuário'} do sistema? Isso excluirá o perfil e o acesso de login.`);
           if (confirmed) {
-            const { data, error } = await supabase.from('user_profiles').delete().eq('id', user.id).select();
+            // Nova chamada RPC segura para deletar da tabela principal e auth.users
+            const { error } = await supabase.rpc('delete_user', { target_user_id: user.id });
+            
             if (error) {
-              alert("Erro ao remover: " + error.message);
-            } else if (!data || data.length === 0) {
-              alert("Remoção FALHOU! O Supabase bloqueou a deleção (política RLS no banco restringe o DELETE).");
+              if (error.message.includes("Could not find the function")) {
+                alert("Para remover usuários com segurança, você precisa rodar o script SQL mais recente no Supabase que cria a função 'delete_user'.");
+              } else {
+                alert("Erro ao remover: " + error.message);
+              }
             } else {
-              alert("Usuário removido com sucesso!");
+              alert("Usuário e acesso removidos com sucesso!");
               loadUsers();
             }
           }
@@ -209,7 +213,7 @@ if (!authorized) return Astro.redirect('/admin/login');
       document.getElementById('edit-name').value = user.display_name || '';
       
       const roleSelect = document.getElementById('edit-role-select');
-      const translations = { 'admin': 'Administrador', 'editor': 'Editor', 'author': 'Autor', 'Admin': 'Administrador', 'Editor': 'Editor', 'Author': 'Autor' };
+      const translations = { 'admin': 'Administrador', 'editor': 'Editor', 'author': 'Autor', 'viewer': 'Leitor', 'Admin': 'Administrador', 'Editor': 'Editor', 'Author': 'Autor', 'Viewer': 'Leitor' };
 
       if (allRoles.length === 0) await loadRoles();
 
@@ -235,13 +239,17 @@ if (!authorized) return Astro.redirect('/admin/login');
       const display_name = document.getElementById('edit-name').value;
       const role_id = document.getElementById('edit-role-select').value;
 
-      const { error } = await supabase
+      // Adicionamos .select() para garantir e verificar que a linha foi atualizada e não bloqueada (silenciosamente)
+      const { data, error } = await supabase
         .from('user_profiles')
         .update({ display_name, role_id })
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) {
         alert("Erro ao salvar: " + error.message);
+      } else if (!data || data.length === 0) {
+        alert("🔒 Edição FALHOU! O Supabase bloqueou a atualização no banco porque falta a permissão (SQL) de UPDATE na tabela user_profiles.");
       } else {
         alert("Alterações salvas com sucesso!");
         editModal.style.display = 'none';
