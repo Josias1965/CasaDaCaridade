@@ -67,7 +67,7 @@ if (!authorized) return Astro.redirect('/admin/login');
     async function loadUsers() {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Buscar todos os perfis com seus cargos
+      // Buscar todos os perfis com seus cargos e os cargos disponíveis
       const { data: profiles, error: pError } = await supabase
         .from('user_profiles')
         .select('*, roles(name)')
@@ -84,60 +84,60 @@ if (!authorized) return Astro.redirect('/admin/login');
         <table class="admin-table">
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>E-mail</th>
-              <th>Criação</th>
-              <th>Permissão (Alterar)</th>
-              <th style="text-align: right">Ações</th>
+              <th style="width: 20%">Nome</th>
+              <th style="width: 30%">E-mail</th>
+              <th style="width: 15%">Criação</th>
+              <th style="width: 20%">Permissão</th>
+              <th style="width: 15%; text-align: right">Ações</th>
             </tr>
           </thead>
           <tbody>
-            ${profiles.map(u => `
+            ${profiles.map(u => {
+              const roleName = u.roles?.name || 'Admin';
+              return `
               <tr>
                 <td class="user-name">${u.display_name || 'Usuário'}</td>
                 <td class="user-email-cell">${u.email || '-'}</td>
                 <td>${u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '-'}</td>
                 <td>
-                  <select class="role-select" data-user-id="${u.id}" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.85rem;">
-                    ${roles.map(r => `
-                      <option value="${r.id}" ${u.role_id === r.id ? 'selected' : ''}>${r.name}</option>
-                    `).join('')}
+                  <select class="role-select" data-user-id="${u.id}">
+                    <option value="${roles.find(r => r.name === 'Admin')?.id}" ${roleName === 'Admin' ? 'selected' : ''}>Administrador</option>
+                    <option value="${roles.find(r => r.name === 'Editor')?.id}" ${roleName === 'Editor' ? 'selected' : ''}>Editor (Publicar)</option>
+                    <option value="${roles.find(r => r.name === 'Author')?.id}" ${roleName === 'Author' ? 'selected' : ''}>Autor (Rascunho)</option>
                   </select>
                 </td>
                 <td style="text-align: right">
                   <div class="dropdown">
                     <button class="btn-dots">Opções ▾</button>
                     <div class="dropdown-content">
-                      <a href="#" class="delete-user" data-id="${u.id}" style="color: #fa5252">❌ Remover Usuário</a>
+                      <a href="#" class="edit-btn">✏️ Editar Dados</a>
+                      <a href="#" class="delete-user" data-id="${u.id}" style="color: #fa5252">🗑️ Remover</a>
                     </div>
                   </div>
                 </td>
               </tr>
-            `).join('')}
+            `}).join('')}
           </tbody>
         </table>
       `;
 
-      // Event listener para mudança de cargo instantânea
+      // Event listener para mudança de cargo
       document.querySelectorAll('.role-select').forEach(select => {
         select.addEventListener('change', async (e) => {
           const userId = e.target.dataset.userId;
           const newRoleId = e.target.value;
           const { error } = await supabase.from('user_profiles').update({ role_id: newRoleId }).eq('id', userId);
-          if (error) alert('Erro ao atualizar cargo: ' + error.message);
-          else {
-            alert('Permissão atualizada com sucesso!');
-            loadUsers();
-          }
+          if (error) alert('Erro: ' + error.message);
+          else loadUsers();
         });
       });
 
-      // Event listeners para delete
+      // Event listener para excluir
       document.querySelectorAll('.delete-user').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.preventDefault();
           const id = e.target.dataset.id;
-          if (confirm('Deseja realmente remover este usuário?')) {
+          if (confirm('Tem certeza que deseja remover este usuário?')) {
              const { error } = await supabase.from('user_profiles').delete().eq('id', id);
              if (error) alert(error.message);
              else loadUsers();
@@ -207,14 +207,16 @@ if (!authorized) return Astro.redirect('/admin/login');
   .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: white; }
   .btn-primary { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
 
-  .admin-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-  .admin-table th { text-align: left; background: #f8f9fa; padding: 15px; border-bottom: 2px solid #eee; color: #444; font-size: 0.9rem; font-weight: 700; }
+  .admin-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 20px; }
+  .admin-table th { text-align: left; background: #f8f9fa; padding: 15px; border-bottom: 2px solid #eee; color: #444; font-size: 0.9rem; font-weight: 700; white-space: nowrap; }
   .admin-table td { padding: 15px; border-bottom: 1px solid #f3f3f3; vertical-align: middle; color: #333; }
   
   .user-name { font-weight: 600; color: #2d3436; }
-  .user-email-cell { color: #636e72; font-size: 0.9rem; }
+  .user-email-cell { color: #636e72; font-size: 0.9rem; word-break: break-all; }
 
-  /* Dropdown Estilo Excel/Moderno */
+  .role-select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; background: #fff; cursor: pointer; }
+
+  /* Corrigindo Dropdown */
   .dropdown { position: relative; display: inline-block; }
   .btn-dots { 
     background: #fff; 
@@ -223,28 +225,25 @@ if (!authorized) return Astro.redirect('/admin/login');
     font-size: 0.85rem; 
     cursor: pointer; 
     color: #444; 
-    padding: 6px 12px;
-    transition: all 0.2s;
+    padding: 8px 12px;
+    white-space: nowrap;
   }
-  .btn-dots:hover { background: #f0f0f0; border-color: #ccc; }
   
   .dropdown-content { 
     display: none; 
     position: absolute; 
     right: 0; 
-    top: 100%;
     background-color: white; 
-    min-width: 160px; 
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
-    z-index: 100; 
-    border-radius: 6px; 
-    border: 1px solid #ddd;
-    margin-top: 5px;
-    padding: 5px 0;
+    min-width: 150px; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
+    z-index: 9999; 
+    border-radius: 8px; 
+    border: 1px solid #eee;
+    padding: 8px 0;
   }
   .dropdown:hover .dropdown-content { display: block; }
-  .dropdown-content a { color: #333; padding: 10px 15px; text-decoration: none; display: block; font-size: 0.85rem; }
-  .dropdown-content a:hover { background-color: #f8f9fa; color: #e03131; }
+  .dropdown-content a { color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 0.85rem; transition: background 0.2s; }
+  .dropdown-content a:hover { background-color: #f8f9fa; }
 
   @media (max-width: 1024px) {
     .form-grid { grid-template-columns: 1fr 1fr; }
