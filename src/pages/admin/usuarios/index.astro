@@ -6,25 +6,25 @@ const { authorized } = await requireAuth(Astro.cookies);
 if (!authorized) return Astro.redirect('/admin/login');
 ---
 
-<AdminLayout title="Gestão de Usuários (v2.1)">
+<AdminLayout title="Gestão de Usuários (v2.2)">
   <div class="users-page">
     <header class="page-header">
-      <h1>Gestão de Usuários <small style="font-size: 0.5em; opacity: 0.5;">(Filtro Ativo)</small></h1>
-      <p>Gerencie quem pode acessar e publicar no portal.</p>
+      <h1>Painel de Acessos <small style="font-size: 0.5em; opacity: 0.5;">(Ativo)</small></h1>
+      <p>Gerencie quem pode publicar e editar no sistema.</p>
     </header>
 
     <!-- Modal de Edição -->
     <div id="edit-modal" class="modal-overlay" style="display: none;">
       <div class="modal-content admin-card">
-        <h3>Editar Usuário</h3>
+        <h3>✏️ Detalhes da Conta</h3>
         <form id="edit-user-form">
           <input type="hidden" id="edit-id" />
           <div class="form-group">
-            <label>E-mail</label>
+            <label>E-mail do Usuário</label>
             <input type="text" id="edit-email" disabled />
           </div>
           <div class="form-group">
-            <label for="edit-name">Nome do Usuário</label>
+            <label for="edit-name">Nome Completo</label>
             <input type="text" id="edit-name" required />
           </div>
           <div class="form-group">
@@ -33,7 +33,7 @@ if (!authorized) return Astro.redirect('/admin/login');
           </div>
           <div class="modal-actions">
             <button type="button" id="close-modal" class="btn-secondary">Cancelar</button>
-            <button type="submit" class="btn-primary">Salvar Alterações</button>
+            <button type="submit" class="btn-primary highlight">Gravar Alterações</button>
           </div>
         </form>
       </div>
@@ -41,7 +41,7 @@ if (!authorized) return Astro.redirect('/admin/login');
 
     <section class="registration-section">
       <div class="admin-card">
-        <h3>Cadastrar Novo Usuário</h3>
+        <h3>Novo Integrante</h3>
         <form id="register-form" class="inline-form">
           <div class="form-grid">
             <div class="form-group">
@@ -50,7 +50,7 @@ if (!authorized) return Astro.redirect('/admin/login');
             </div>
             <div class="form-group">
               <label for="email">E-mail</label>
-              <input type="email" id="email" required placeholder="user@exemplo.com" />
+              <input type="email" id="email" required placeholder="exemplo@gmail.com" />
             </div>
             <div class="form-group">
               <label for="role">Permissão</label>
@@ -61,11 +61,11 @@ if (!authorized) return Astro.redirect('/admin/login');
               </select>
             </div>
             <div class="form-group">
-              <label for="password">Senha</label>
+              <label for="password">Senha Temporária</label>
               <input type="password" id="password" required minlength="6" />
             </div>
             <div class="form-actions">
-              <button type="submit" class="btn-primary">Criar Conta</button>
+              <button type="submit" class="btn-primary highlight">Registrar</button>
             </div>
           </div>
           <div id="status-message" style="display: none; margin-top: 20px; padding: 15px; border-radius: 8px;"></div>
@@ -75,9 +75,9 @@ if (!authorized) return Astro.redirect('/admin/login');
 
     <section class="users-list-section">
       <div class="admin-card">
-        <h3>Lista de Acesso</h3>
-        <div id="users-table-container" style="min-height: 200px;">
-          <p>Buscando usuários...</p>
+        <h3>Tabela de Usuários</h3>
+        <div id="users-table-container">
+          <p>Carregando dados estruturados...</p>
         </div>
       </div>
     </section>
@@ -96,25 +96,24 @@ if (!authorized) return Astro.redirect('/admin/login');
     let allRoles = [];
 
     async function loadUsers() {
+      // 1. Carregamos os perfis
       const { data: profiles, error: pError } = await supabase
         .from('user_profiles')
         .select('*, roles(id, name)')
         .order('created_at', { ascending: false });
 
       if (pError) {
-        tableContainer.innerHTML = `<p style="color: red">Erro ao carregar: ${pError.message}</p>`;
+        tableContainer.innerHTML = `<p style="color: red">Erro: ${pError.message}</p>`;
         return;
       }
 
-      // RECONSTRUÇÃO DE ROLES: Pegamos as permissões direto dos perfis carregados
-      // Isso ignora qualquer bloqueio de RLS na tabela roles
-      const roleMap = new Map();
-      profiles.forEach(p => {
-        if (p.roles && p.role_id) {
-          roleMap.set(p.role_id, p.roles.name);
-        }
-      });
-      allRoles = Array.from(roleMap).map(([id, name]) => ({ id, name }));
+      // 2. BUSCA ATIVA DE ROLES: Buscamos os 3 tipos especificamente para garantir que apareçam
+      const { data: rolesData } = await supabase
+        .from('roles')
+        .select('*')
+        .in('name', ['Admin', 'Editor', 'Author']);
+      
+      if (rolesData) allRoles = rolesData;
 
       tableContainer.innerHTML = `
         <table class="admin-table">
@@ -137,8 +136,8 @@ if (!authorized) return Astro.redirect('/admin/login');
                 <td><span class="badge ${roleName.toLowerCase()}">${displayRole}</span></td>
                 <td style="text-align: right">
                   <select class="action-select-box" data-user='${JSON.stringify(u)}'>
-                    <option value="" disabled selected>Ações ▾</option>
-                    <option value="edit">✏️ Editar</option>
+                    <option value="" disabled selected>Opções ▾</option>
+                    <option value="edit">✏️ Detalhes</option>
                     <option value="remove">🗑️ Remover</option>
                   </select>
                 </td>
@@ -148,14 +147,14 @@ if (!authorized) return Astro.redirect('/admin/login');
         </table>
       `;
 
+      // Listeners...
       document.querySelectorAll('.action-select-box').forEach(select => {
-        select.addEventListener('change', async (e) => {
+        select.addEventListener('change', (e) => {
           const action = e.target.value;
           const user = JSON.parse(e.target.dataset.user);
           if (action === 'remove') {
             if (confirm(`Remover permanentemente ${user.email}?`)) {
-               await supabase.from('user_profiles').delete().eq('id', user.id);
-               loadUsers();
+               supabase.from('user_profiles').delete().eq('id', user.id).then(() => loadUsers());
             }
           } else if (action === 'edit') {
              openModal(user);
@@ -165,7 +164,7 @@ if (!authorized) return Astro.redirect('/admin/login');
       });
     }
 
-    function openModal(user) {
+    async function openModal(user) {
       document.getElementById('edit-id').value = user.id;
       document.getElementById('edit-email').value = user.email;
       document.getElementById('edit-name').value = user.display_name || '';
@@ -173,9 +172,10 @@ if (!authorized) return Astro.redirect('/admin/login');
       const roleSelect = document.getElementById('edit-role-select');
       const translations = { 'Admin': 'Administrador', 'Editor': 'Editor', 'Author': 'Autor' };
 
-      // Fallback manual se a lista reconstruída estiver vazia
-      if (allRoles.length === 0 && user.role_id) {
-         allRoles = [{ id: user.role_id, name: user.roles?.name || 'Admin' }];
+      // Se por algum motivo o loadUsers não pegou os roles, tentamos novamente aqui
+      if (allRoles.length < 3) {
+        const { data } = await supabase.from('roles').select('*').in('name', ['Admin', 'Editor', 'Author']);
+        if (data) allRoles = data;
       }
 
       roleSelect.innerHTML = allRoles.map(r => `
