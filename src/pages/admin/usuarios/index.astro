@@ -6,11 +6,11 @@ const { authorized } = await requireAuth(Astro.cookies);
 if (!authorized) return Astro.redirect('/admin/login');
 ---
 
-<AdminLayout title="Gestão de Usuários (Atualizado)">
+<AdminLayout title="Gestão de Usuários (v2.1)">
   <div class="users-page">
     <header class="page-header">
-      <h1>Gestão de Usuários <small style="font-size: 0.5em; opacity: 0.5;">(Nova Versão)</small></h1>
-      <p>Cadastre e gerencie os administradores do sistema.</p>
+      <h1>Gestão de Usuários <small style="font-size: 0.5em; opacity: 0.5;">(Filtro Ativo)</small></h1>
+      <p>Gerencie quem pode acessar e publicar no portal.</p>
     </header>
 
     <!-- Modal de Edição -->
@@ -19,16 +19,16 @@ if (!authorized) return Astro.redirect('/admin/login');
         <h3>Editar Usuário</h3>
         <form id="edit-user-form">
           <input type="hidden" id="edit-id" />
-          <div class="form-group" style="margin-bottom: 15px;">
-            <label>E-mail (Não pode ser alterado)</label>
-            <input type="text" id="edit-email" disabled style="background: #f5f5f5; cursor: not-allowed;" />
+          <div class="form-group">
+            <label>E-mail</label>
+            <input type="text" id="edit-email" disabled />
           </div>
-          <div class="form-group" style="margin-bottom: 15px;">
+          <div class="form-group">
             <label for="edit-name">Nome do Usuário</label>
             <input type="text" id="edit-name" required />
           </div>
-          <div class="form-group" style="margin-bottom: 20px;">
-            <label for="edit-role">Permissão</label>
+          <div class="form-group">
+            <label for="edit-role-select">Nível de Permissão</label>
             <select id="edit-role-select" required></select>
           </div>
           <div class="modal-actions">
@@ -41,7 +41,7 @@ if (!authorized) return Astro.redirect('/admin/login');
 
     <section class="registration-section">
       <div class="admin-card">
-        <h3>Novo Administrador</h3>
+        <h3>Cadastrar Novo Usuário</h3>
         <form id="register-form" class="inline-form">
           <div class="form-grid">
             <div class="form-group">
@@ -50,34 +50,34 @@ if (!authorized) return Astro.redirect('/admin/login');
             </div>
             <div class="form-group">
               <label for="email">E-mail</label>
-              <input type="email" id="email" required placeholder="email@exemplo.com" />
+              <input type="email" id="email" required placeholder="user@exemplo.com" />
             </div>
             <div class="form-group">
               <label for="role">Permissão</label>
               <select id="role" required>
                 <option value="Admin">Administrador</option>
-                <option value="Editor">Editor (Publicar)</option>
+                <option value="Editor">Editor (Publica)</option>
                 <option value="Author">Autor (Rascunho)</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="password">Senha Inicial</label>
+              <label for="password">Senha</label>
               <input type="password" id="password" required minlength="6" />
             </div>
             <div class="form-actions">
-              <button type="submit" class="btn-primary">Cadastrar</button>
+              <button type="submit" class="btn-primary">Criar Conta</button>
             </div>
           </div>
-          <div id="status-message" style="display: none; margin-top: 15px; padding: 10px; border-radius: 4px;"></div>
+          <div id="status-message" style="display: none; margin-top: 20px; padding: 15px; border-radius: 8px;"></div>
         </form>
       </div>
     </section>
 
     <section class="users-list-section">
       <div class="admin-card">
-        <h3>Usuários Existentes</h3>
-        <div id="users-table-container">
-          <p>Carregando usuários...</p>
+        <h3>Lista de Acesso</h3>
+        <div id="users-table-container" style="min-height: 200px;">
+          <p>Buscando usuários...</p>
         </div>
       </div>
     </section>
@@ -89,8 +89,6 @@ if (!authorized) return Astro.redirect('/admin/login');
     const form = document.getElementById('register-form');
     const statusMsg = document.getElementById('status-message');
     const tableContainer = document.getElementById('users-table-container');
-    
-    // Modal Elements
     const editModal = document.getElementById('edit-modal');
     const editForm = document.getElementById('edit-user-form');
     const closeBtn = document.getElementById('close-modal');
@@ -98,48 +96,50 @@ if (!authorized) return Astro.redirect('/admin/login');
     let allRoles = [];
 
     async function loadUsers() {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-
       const { data: profiles, error: pError } = await supabase
         .from('user_profiles')
-        .select('*, roles(name)')
+        .select('*, roles(id, name)')
         .order('created_at', { ascending: false });
 
-      const { data: roles, error: rError } = await supabase.from('roles').select('*');
-      allRoles = roles || [];
-
-      if (pError || rError) {
-        tableContainer.innerHTML = `<p style="color: red">Erro: ${pError?.message || rError?.message}</p>`;
+      if (pError) {
+        tableContainer.innerHTML = `<p style="color: red">Erro ao carregar: ${pError.message}</p>`;
         return;
       }
+
+      // RECONSTRUÇÃO DE ROLES: Pegamos as permissões direto dos perfis carregados
+      // Isso ignora qualquer bloqueio de RLS na tabela roles
+      const roleMap = new Map();
+      profiles.forEach(p => {
+        if (p.roles && p.role_id) {
+          roleMap.set(p.role_id, p.roles.name);
+        }
+      });
+      allRoles = Array.from(roleMap).map(([id, name]) => ({ id, name }));
 
       tableContainer.innerHTML = `
         <table class="admin-table">
           <thead>
             <tr>
-              <th style="width: 20%">Nome</th>
-              <th style="width: 30%">E-mail</th>
-              <th style="width: 15%">Criação</th>
-              <th style="width: 20%">Permissão</th>
+              <th style="width: 25%">Nome</th>
+              <th style="width: 35%">E-mail</th>
+              <th style="width: 25%">Permissão</th>
               <th style="width: 15%; text-align: right">Ações</th>
             </tr>
           </thead>
           <tbody>
             ${profiles.map(u => {
               const roleName = u.roles?.name || 'Admin';
+              const displayRole = roleName === 'Admin' ? 'Administrador' : roleName === 'Editor' ? 'Editor' : 'Autor';
               return `
               <tr>
-                <td class="user-name"><strong>${u.display_name || u.email || 'Usuário'}</strong></td>
-                <td class="user-email-cell">${u.email || '-'}</td>
-                <td class="date-cell">${u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '-'}</td>
-                <td>
-                  <span class="badge ${roleName.toLowerCase()}">${roleName}</span>
-                </td>
+                <td><strong>${u.display_name || u.email}</strong></td>
+                <td class="email-text">${u.email}</td>
+                <td><span class="badge ${roleName.toLowerCase()}">${displayRole}</span></td>
                 <td style="text-align: right">
                   <select class="action-select-box" data-user='${JSON.stringify(u)}'>
-                    <option value="" disabled selected>Opções ▾</option>
-                    <option value="edit">✏️ Editar Registro</option>
-                    <option value="remove">🗑️ Remover Usuário</option>
+                    <option value="" disabled selected>Ações ▾</option>
+                    <option value="edit">✏️ Editar</option>
+                    <option value="remove">🗑️ Remover</option>
                   </select>
                 </td>
               </tr>
@@ -148,12 +148,10 @@ if (!authorized) return Astro.redirect('/admin/login');
         </table>
       `;
 
-      // Listener para Ações
       document.querySelectorAll('.action-select-box').forEach(select => {
         select.addEventListener('change', async (e) => {
           const action = e.target.value;
           const user = JSON.parse(e.target.dataset.user);
-
           if (action === 'remove') {
             if (confirm(`Remover permanentemente ${user.email}?`)) {
                await supabase.from('user_profiles').delete().eq('id', user.id);
@@ -167,29 +165,22 @@ if (!authorized) return Astro.redirect('/admin/login');
       });
     }
 
-    async function openModal(user) {
+    function openModal(user) {
       document.getElementById('edit-id').value = user.id;
-      document.getElementById('edit-email').value = user.email || '-';
+      document.getElementById('edit-email').value = user.email;
       document.getElementById('edit-name').value = user.display_name || '';
       
       const roleSelect = document.getElementById('edit-role-select');
-      roleSelect.innerHTML = '<option>Carregando permissões...</option>';
-      
-      // Garantir que temos os roles carregados
-      if (allRoles.length === 0) {
-        const { data } = await supabase.from('roles').select('*');
-        if (data) allRoles = data;
+      const translations = { 'Admin': 'Administrador', 'Editor': 'Editor', 'Author': 'Autor' };
+
+      // Fallback manual se a lista reconstruída estiver vazia
+      if (allRoles.length === 0 && user.role_id) {
+         allRoles = [{ id: user.role_id, name: user.roles?.name || 'Admin' }];
       }
-      
-      const roleMap = {
-        'Admin': 'Administrador',
-        'Editor': 'Editor (Publicar)',
-        'Author': 'Autor (Rascunho)'
-      };
 
       roleSelect.innerHTML = allRoles.map(r => `
         <option value="${r.id}" ${user.role_id === r.id ? 'selected' : ''}>
-          ${roleMap[r.name] || r.name}
+          ${translations[r.name] || r.name}
         </option>
       `).join('');
       
@@ -205,9 +196,8 @@ if (!authorized) return Astro.redirect('/admin/login');
       const role_id = document.getElementById('edit-role-select').value;
 
       const { error } = await supabase.from('user_profiles').update({ display_name, role_id }).eq('id', id);
-      if (error) {
-        alert("Erro ao salvar: " + error.message);
-      } else {
+      if (error) alert("Erro: " + error.message);
+      else {
         editModal.style.display = 'none';
         loadUsers();
       }
@@ -221,36 +211,28 @@ if (!authorized) return Astro.redirect('/admin/login');
       const roleName = document.getElementById('role').value;
 
       statusMsg.style.display = 'block';
-      statusMsg.style.background = '#f0f0f0';
-      statusMsg.textContent = 'Criando conta...';
+      statusMsg.style.background = '#f8f9fa';
+      statusMsg.textContent = 'Processando...';
 
       const { data: roleData } = await supabase.from('roles').select('id').eq('name', roleName).single();
-
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { display_name: displayName } }
+        email, password, options: { data: { display_name: displayName } }
       });
 
       if (authError) {
         statusMsg.style.background = '#fff0f0';
-        statusMsg.style.color = '#e03131';
         statusMsg.textContent = authError.message;
         return;
       }
 
       if (authData.user) {
         await supabase.from('user_profiles').insert([{
-           id: authData.user.id,
-           display_name: displayName,
-           email: email,
-           role_id: roleData.id
+           id: authData.user.id, display_name: displayName, email: email, role_id: roleData.id
         }]);
       }
 
-      statusMsg.style.background = '#f2fcf2';
-      statusMsg.style.color = '#0ca678';
-      statusMsg.textContent = 'Usuário cadastrado com sucesso!';
+      statusMsg.style.background = '#e7f5ff';
+      statusMsg.textContent = 'Conta criada!';
       form.reset();
       setTimeout(loadUsers, 1000);
     });
@@ -262,48 +244,44 @@ if (!authorized) return Astro.redirect('/admin/login');
 <style>
   .users-page { padding: 20px 0; }
   .page-header { margin-bottom: 30px; }
-  .page-header h1 { font-size: 2rem; margin-bottom: 5px; }
-  .page-header p { color: #666; }
+  .page-header h1 { font-size: 1.8rem; margin-bottom: 5px; color: #1a1b1e; }
+  .page-header p { color: #868e96; }
 
   .registration-section { margin-bottom: 30px; }
-  .admin-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #eee; }
-  .admin-card h3 { margin-bottom: 20px; font-size: 1.1rem; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; color: #333; }
+  .admin-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #dee2e6; }
+  .admin-card h3 { margin-bottom: 20px; font-size: 1rem; border-bottom: 1px solid #f1f3f5; padding-bottom: 10px; color: #495057; text-transform: uppercase; letter-spacing: 0.5px; }
 
-  .form-grid { display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr auto; gap: 15px; align-items: flex-end; }
-  .form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; color: #555; }
-  .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: white; outline: none; font-size: 0.9rem; }
-  .btn-primary { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
-  .btn-primary:hover { opacity: 0.9; }
-  .btn-secondary { background: #eee; color: #444; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 12px; align-items: flex-end; }
+  .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.8rem; color: #495057; }
+  .form-group input, .form-group select { 
+    width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; 
+    background: #fff; font-size: 0.9rem; transition: border-color 0.2s;
+  }
+  .form-group input:focus { border-color: var(--primary); outline: none; }
+  .form-group input:disabled { background: #f8f9fa; cursor: not-allowed; }
 
-  .admin-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  .admin-table th { text-align: left; background: #f8f9fa; padding: 15px; border-bottom: 2px solid #eee; color: #666; font-size: 0.85rem; font-weight: 700; }
-  .admin-table td { padding: 15px; border-bottom: 1px solid #f3f3f3; vertical-align: middle; color: #333; font-size: 0.9rem; }
+  .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .btn-secondary { background: #f1f3f5; color: #495057; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+
+  .admin-table { width: 100%; border-collapse: collapse; }
+  .admin-table th { text-align: left; background: #f8f9fa; padding: 12px; border-bottom: 2px solid #dee2e6; color: #495057; font-size: 0.75rem; text-transform: uppercase; }
+  .admin-table td { padding: 12px; border-bottom: 1px solid #f1f3f5; font-size: 0.9rem; }
   
-  .user-name { color: #2d3436; }
-  .user-email-cell { color: #636e72; font-family: monospace; font-size: 0.85rem; }
-  .date-cell { white-space: nowrap; color: #999; font-size: 0.8rem; }
-
-  .action-select-box { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem; background: #fff; cursor: pointer; color: #444; font-weight: 500; }
-
-  .badge { padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
-  .badge.admin { background: #e3fafc; color: #0c8599; }
+  .email-text { color: #868e96; font-size: 0.85rem; font-family: monospace; }
+  .badge { padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+  .badge.admin { background: #e7f5ff; color: #1c7ed6; }
   .badge.editor { background: #fff4e6; color: #d9480f; }
   .badge.author { background: #f3f0ff; color: #5f3dc4; }
 
-  /* Modal Styles */
-  .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(2px); }
-  .modal-content { width: 480px; position: relative; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px; }
+  .action-select-box { padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.8rem; background: #fff; cursor: pointer; }
 
-  @keyframes slideUp {
-    from { transform: translateY(30px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
+  /* Modal Overlay */
+  .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px); }
+  .modal-content { width: 450px; background: white; border-radius: 12px; overflow: hidden; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #f1f3f5; }
 
   @media (max-width: 1024px) {
     .form-grid { grid-template-columns: 1fr 1fr; }
-    .form-actions { grid-column: span 2; width: 100%; }
-    .btn-primary { width: 100%; }
+    .form-actions { grid-column: span 2; }
   }
 </style>
