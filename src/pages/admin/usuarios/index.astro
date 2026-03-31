@@ -20,11 +20,19 @@ if (!authorized) return Astro.redirect('/admin/login');
           <div class="form-grid">
             <div class="form-group">
               <label for="display_name">Nome</label>
-              <input type="text" id="display_name" required placeholder="Ex: João Silva" />
+              <input type="text" id="display_name" required placeholder="Ex: Josias" />
             </div>
             <div class="form-group">
               <label for="email">E-mail</label>
               <input type="email" id="email" required placeholder="email@exemplo.com" />
+            </div>
+            <div class="form-group">
+              <label for="role">Permissão</label>
+              <select id="role" required>
+                <option value="Admin">Administrador</option>
+                <option value="Editor">Editor (Publicar)</option>
+                <option value="Author">Autor (Rascunho)</option>
+              </select>
             </div>
             <div class="form-group">
               <label for="password">Senha Inicial</label>
@@ -57,40 +65,18 @@ if (!authorized) return Astro.redirect('/admin/login');
     const tableContainer = document.getElementById('users-table-container');
 
     async function loadUsers() {
-      // Primeiro, pegar o usuário logado no Auth
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Buscar todos os perfis
-      const { data: profiles, error } = await supabase
+      // Buscar todos os perfis com seus cargos
+      const { data: profiles, error: pError } = await supabase
         .from('user_profiles')
-        .select('*')
+        .select('*, roles(name)')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        tableContainer.innerHTML = `<p style="color: red">Erro ao carregar: ${error.message}</p>`;
-        return;
-      }
+      const { data: roles, error: rError } = await supabase.from('roles').select('*');
 
-      // Se não houver nenhum perfil (nem o do administrador atual)
-      // é provável que o trigger não tenha rodado para usuários antigos.
-      if (profiles.length === 0 && user) {
-        // Criar o perfil do administrador logado agora mesmo
-        const { error: insertError } = await supabase
-          .from('user_profiles')
-          .insert([{ 
-            id: user.id, 
-            display_name: user.user_metadata.display_name || user.email.split('@')[0], 
-            role_id: 1 // Admin
-          }]);
-        
-        if (!insertError) {
-          loadUsers(); // Recarrega para mostrar o novo perfil
-          return;
-        }
-      }
-
-      if (profiles.length === 0) {
-        tableContainer.innerHTML = '<p>Nenhum administrador cadastrado no banco de dados.</p>';
+      if (pError || rError) {
+        tableContainer.innerHTML = `<p style="color: red">Erro ao carregar: ${pError?.message || rError?.message}</p>`;
         return;
       }
 
@@ -98,24 +84,31 @@ if (!authorized) return Astro.redirect('/admin/login');
         <table class="admin-table">
           <thead>
             <tr>
-              <th style="width: 30%">Nome</th>
-              <th style="width: 30%">E-mail</th>
+              <th>Nome</th>
+              <th>E-mail</th>
               <th>Criação</th>
+              <th>Permissão (Alterar)</th>
               <th style="text-align: right">Ações</th>
             </tr>
           </thead>
           <tbody>
             ${profiles.map(u => `
               <tr>
-                <td class="user-name">${u.display_name}</td>
-                <td style="color: #666; font-size: 0.9rem;">${u.email || 'Admin'}</td>
+                <td class="user-name">${u.display_name || 'Usuário'}</td>
+                <td class="user-email-cell">${u.email || '-'}</td>
                 <td>${u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '-'}</td>
+                <td>
+                  <select class="role-select" data-user-id="${u.id}" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.85rem;">
+                    ${roles.map(r => `
+                      <option value="${r.id}" ${u.role_id === r.id ? 'selected' : ''}>${r.name}</option>
+                    `).join('')}
+                  </select>
+                </td>
                 <td style="text-align: right">
                   <div class="dropdown">
-                    <button class="btn-dots">⋮</button>
+                    <button class="btn-dots">Opções ▾</button>
                     <div class="dropdown-content">
-                      <a href="#" class="edit-user">Alterar</a>
-                      <a href="#" class="delete-user" data-id="${u.id}" style="color: #fa5252">Remover</a>
+                      <a href="#" class="delete-user" data-id="${u.id}" style="color: #fa5252">❌ Remover Usuário</a>
                     </div>
                   </div>
                 </td>
@@ -125,14 +118,26 @@ if (!authorized) return Astro.redirect('/admin/login');
         </table>
       `;
 
-      // Event listeners para delete (simulativo ou real se tivermos permissão)
+      // Event listener para mudança de cargo instantânea
+      document.querySelectorAll('.role-select').forEach(select => {
+        select.addEventListener('change', async (e) => {
+          const userId = e.target.dataset.userId;
+          const newRoleId = e.target.value;
+          const { error } = await supabase.from('user_profiles').update({ role_id: newRoleId }).eq('id', userId);
+          if (error) alert('Erro ao atualizar cargo: ' + error.message);
+          else {
+            alert('Permissão atualizada com sucesso!');
+            loadUsers();
+          }
+        });
+      });
+
+      // Event listeners para delete
       document.querySelectorAll('.delete-user').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.preventDefault();
           const id = e.target.dataset.id;
-          if (confirm('Deseja realmente remover este usuário do sistema?')) {
-             // Nota: No Supabase CLIENT não podemos apagar de AUTH.USERS sem Admin API.
-             // Mas podemos apagar do profile para tirar acesso se o RLS permitir.
+          if (confirm('Deseja realmente remover este usuário?')) {
              const { error } = await supabase.from('user_profiles').delete().eq('id', id);
              if (error) alert(error.message);
              else loadUsers();
@@ -146,28 +151,41 @@ if (!authorized) return Astro.redirect('/admin/login');
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
       const displayName = document.getElementById('display_name').value;
+      const roleName = document.getElementById('role').value;
 
       statusMsg.style.display = 'block';
       statusMsg.style.background = '#f0f0f0';
       statusMsg.textContent = 'Criando conta...';
 
-      const { error } = await supabase.auth.signUp({
+      const { data: roleData } = await supabase.from('roles').select('id').eq('name', roleName).single();
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { display_name: displayName } }
       });
 
-      if (error) {
+      if (authError) {
         statusMsg.style.background = '#fff0f0';
         statusMsg.style.color = '#e03131';
-        statusMsg.textContent = error.message;
-      } else {
-        statusMsg.style.background = '#f2fcf2';
-        statusMsg.style.color = '#0ca678';
-        statusMsg.textContent = 'Usuário cadastrado com sucesso! Recarregando...';
-        form.reset();
-        setTimeout(loadUsers, 1500);
+        statusMsg.textContent = authError.message;
+        return;
       }
+
+      if (authData.user) {
+        await supabase.from('user_profiles').insert([{
+           id: authData.user.id,
+           display_name: displayName,
+           email: email,
+           role_id: roleData.id
+        }]);
+      }
+
+      statusMsg.style.background = '#f2fcf2';
+      statusMsg.style.color = '#0ca678';
+      statusMsg.textContent = 'Usuário cadastrado com sucesso!';
+      form.reset();
+      setTimeout(loadUsers, 1000);
     });
 
     loadUsers();
@@ -184,26 +202,52 @@ if (!authorized) return Astro.redirect('/admin/login');
   .admin-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
   .admin-card h3 { margin-bottom: 20px; font-size: 1.1rem; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
 
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: flex-end; }
+  .form-grid { display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr auto; gap: 15px; align-items: flex-end; }
   .form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; }
-  .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
-  .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: white; }
+  .btn-primary { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
 
   .admin-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
   .admin-table th { text-align: left; background: #f8f9fa; padding: 15px; border-bottom: 2px solid #eee; color: #444; font-size: 0.9rem; font-weight: 700; }
-  .admin-table td { padding: 15px; border-bottom: 1px solid #f2f2f2; vertical-align: middle; }
-  .user-name { font-weight: 600; color: #333; }
-  .role-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; background: #e7f5ff; color: #1971c2; }
+  .admin-table td { padding: 15px; border-bottom: 1px solid #f3f3f3; vertical-align: middle; color: #333; }
+  
+  .user-name { font-weight: 600; color: #2d3436; }
+  .user-email-cell { color: #636e72; font-size: 0.9rem; }
 
-  /* Dropdown Styles */
+  /* Dropdown Estilo Excel/Moderno */
   .dropdown { position: relative; display: inline-block; }
-  .btn-dots { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; padding: 0 10px; }
-  .dropdown-content { display: none; position: absolute; right: 0; background-color: white; min-width: 120px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); z-index: 1; border-radius: 6px; border: 1px solid #eee; }
+  .btn-dots { 
+    background: #fff; 
+    border: 1px solid #ddd; 
+    border-radius: 4px; 
+    font-size: 0.85rem; 
+    cursor: pointer; 
+    color: #444; 
+    padding: 6px 12px;
+    transition: all 0.2s;
+  }
+  .btn-dots:hover { background: #f0f0f0; border-color: #ccc; }
+  
+  .dropdown-content { 
+    display: none; 
+    position: absolute; 
+    right: 0; 
+    top: 100%;
+    background-color: white; 
+    min-width: 160px; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+    z-index: 100; 
+    border-radius: 6px; 
+    border: 1px solid #ddd;
+    margin-top: 5px;
+    padding: 5px 0;
+  }
   .dropdown:hover .dropdown-content { display: block; }
-  .dropdown-content a { color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 0.9rem; }
-  .dropdown-content a:hover { background-color: #f8f9fa; }
+  .dropdown-content a { color: #333; padding: 10px 15px; text-decoration: none; display: block; font-size: 0.85rem; }
+  .dropdown-content a:hover { background-color: #f8f9fa; color: #e03131; }
 
-  @media (max-width: 900px) {
-    .form-grid { grid-template-columns: 1fr; }
+  @media (max-width: 1024px) {
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .form-actions { grid-column: span 2; }
   }
 </style>
