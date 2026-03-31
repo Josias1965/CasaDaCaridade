@@ -134,7 +134,40 @@ if (!authorized) {
   .form-group { margin-bottom: 20px; }
   .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
   input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-  .admin-table { width: 100%; border-collapse: collapse; }
-  .admin-table th, .admin-table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-  .delete-cat { background: none; border: none; color: #fa5252; cursor: pointer; font-weight: 600; }
+  .admin-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .admin-table th, .admin-table td { 
+    padding: 15px 20px; 
+    text-align: left; 
+    border-bottom: 1px solid #eee; 
+  }
+  .admin-table th {
+    font-weight: 700;
+    color: #333;
+    background-color: #fcfcfc;
+    border-bottom: 2px solid #f0f0f0;
+  }
+  .admin-table tr:hover {
+    background-color: #f9f9f9;
+  }
+  .delete-cat { 
+    background-color: #fff1f0; 
+    border: 1px solid #ffa39e; 
+    color: #cf1322; 
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer; 
+    font-weight: 600; 
+    font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+  .delete-cat:hover {
+    background-color: #cf1322;
+    color: white;
+    border-color: #cf1322;
+  }
+  /* Garante que os nomes longos não quebrem o layout */
+  .admin-table td:nth-child(1) { min-width: 150px; }
+  .admin-table td:nth-child(2) { min-width: 150px; color: #666; font-family: monospace; font-size: 0.9rem;}
+  .admin-table td:nth-child(3) { text-align: right; width: 100px; }
+  .admin-table th:last-child { text-align: right; }
 </style>
