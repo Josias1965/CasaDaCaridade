@@ -65,9 +65,8 @@ if (!authorized) return Astro.redirect('/admin/login');
     const tableContainer = document.getElementById('users-table-container');
 
     async function loadUsers() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      // Buscar todos os perfis com seus cargos e os cargos disponíveis
       const { data: profiles, error: pError } = await supabase
         .from('user_profiles')
         .select('*, roles(name)')
@@ -76,7 +75,7 @@ if (!authorized) return Astro.redirect('/admin/login');
       const { data: roles, error: rError } = await supabase.from('roles').select('*');
 
       if (pError || rError) {
-        tableContainer.innerHTML = `<p style="color: red">Erro ao carregar: ${pError?.message || rError?.message}</p>`;
+        tableContainer.innerHTML = `<p style="color: red">Erro: ${pError?.message || rError?.message}</p>`;
         return;
       }
 
@@ -96,24 +95,22 @@ if (!authorized) return Astro.redirect('/admin/login');
               const roleName = u.roles?.name || 'Admin';
               return `
               <tr>
-                <td class="user-name">${u.display_name || 'Usuário'}</td>
+                <td class="user-name"><strong>${u.display_name || 'Usuário'}</strong></td>
                 <td class="user-email-cell">${u.email || '-'}</td>
-                <td>${u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '-'}</td>
+                <td class="date-cell">${u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '-'}</td>
                 <td>
-                  <select class="role-select" data-user-id="${u.id}">
+                  <select class="role-select-box" data-user-id="${u.id}">
                     <option value="${roles.find(r => r.name === 'Admin')?.id}" ${roleName === 'Admin' ? 'selected' : ''}>Administrador</option>
                     <option value="${roles.find(r => r.name === 'Editor')?.id}" ${roleName === 'Editor' ? 'selected' : ''}>Editor (Publicar)</option>
                     <option value="${roles.find(r => r.name === 'Author')?.id}" ${roleName === 'Author' ? 'selected' : ''}>Autor (Rascunho)</option>
                   </select>
                 </td>
                 <td style="text-align: right">
-                  <div class="dropdown">
-                    <button class="btn-dots">Opções ▾</button>
-                    <div class="dropdown-content">
-                      <a href="#" class="edit-btn">✏️ Editar Dados</a>
-                      <a href="#" class="delete-user" data-id="${u.id}" style="color: #fa5252">🗑️ Remover</a>
-                    </div>
-                  </div>
+                  <select class="action-select-box" data-user-id="${u.id}" data-user-email="${u.email}">
+                    <option value="" disabled selected>Escolher Ação ▾</option>
+                    <option value="edit">✏️ Editar Dados</option>
+                    <option value="remove">🗑️ Remover Usuário</option>
+                  </select>
                 </td>
               </tr>
             `}).join('')}
@@ -121,27 +118,42 @@ if (!authorized) return Astro.redirect('/admin/login');
         </table>
       `;
 
-      // Event listener para mudança de cargo
-      document.querySelectorAll('.role-select').forEach(select => {
+      // Listener para Permissão
+      document.querySelectorAll('.role-select-box').forEach(select => {
         select.addEventListener('change', async (e) => {
           const userId = e.target.dataset.userId;
           const newRoleId = e.target.value;
           const { error } = await supabase.from('user_profiles').update({ role_id: newRoleId }).eq('id', userId);
-          if (error) alert('Erro: ' + error.message);
-          else loadUsers();
+          if (error) alert('Erro ao mudar cargo: ' + error.message);
+          else {
+             alert('Permissão atualizada!');
+             loadUsers();
+          }
         });
       });
 
-      // Event listener para excluir
-      document.querySelectorAll('.delete-user').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          const id = e.target.dataset.id;
-          if (confirm('Tem certeza que deseja remover este usuário?')) {
-             const { error } = await supabase.from('user_profiles').delete().eq('id', id);
-             if (error) alert(error.message);
-             else loadUsers();
+      // Listener para Ações (Remover / Editar)
+      document.querySelectorAll('.action-select-box').forEach(select => {
+        select.addEventListener('change', async (e) => {
+          const action = e.target.value;
+          const userId = e.target.dataset.userId;
+          const email = e.target.dataset.userEmail;
+
+          if (action === 'remove') {
+            if (confirm(`Tem certeza que deseja remover ${email}?`)) {
+               const { error } = await supabase.from('user_profiles').delete().eq('id', userId);
+               if (error) alert(error.message);
+               else loadUsers();
+            }
+          } else if (action === 'edit') {
+             const newName = prompt("Digite o novo nome para este usuário:", "");
+             if (newName) {
+                await supabase.from('user_profiles').update({ display_name: newName }).eq('id', userId);
+                loadUsers();
+             }
           }
+          // Resetar o select
+          e.target.value = "";
         });
       });
     }
@@ -207,43 +219,29 @@ if (!authorized) return Astro.redirect('/admin/login');
   .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: white; }
   .btn-primary { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
 
-  .admin-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 20px; }
-  .admin-table th { text-align: left; background: #f8f9fa; padding: 15px; border-bottom: 2px solid #eee; color: #444; font-size: 0.9rem; font-weight: 700; white-space: nowrap; }
-  .admin-table td { padding: 15px; border-bottom: 1px solid #f3f3f3; vertical-align: middle; color: #333; }
+  .admin-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  .admin-table th { text-align: left; background: #f8f9fa; padding: 15px; border-bottom: 2px solid #eee; color: #444; font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+  .admin-table td { padding: 15px; border-bottom: 1px solid #f3f3f3; vertical-align: middle; color: #333; font-size: 0.9rem; }
   
-  .user-name { font-weight: 600; color: #2d3436; }
-  .user-email-cell { color: #636e72; font-size: 0.9rem; word-break: break-all; }
+  .user-name { color: #2d3436; overflow: hidden; text-overflow: ellipsis; }
+  .user-email-cell { color: #636e72; font-family: monospace; }
+  .date-cell { white-space: nowrap; }
 
-  .role-select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; background: #fff; cursor: pointer; }
-
-  /* Corrigindo Dropdown */
-  .dropdown { position: relative; display: inline-block; }
-  .btn-dots { 
-    background: #fff; 
-    border: 1px solid #ddd; 
-    border-radius: 4px; 
-    font-size: 0.85rem; 
-    cursor: pointer; 
-    color: #444; 
+  /* Caixas de seleção estilo Excel */
+  .role-select-box, .action-select-box {
+    width: 100%;
     padding: 8px 12px;
-    white-space: nowrap;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    background: #fff;
+    cursor: pointer;
+    color: #444;
+    transition: all 0.2s;
   }
+  .role-select-box:hover, .action-select-box:hover { border-color: var(--primary); background: #f8f9fa; }
   
-  .dropdown-content { 
-    display: none; 
-    position: absolute; 
-    right: 0; 
-    background-color: white; 
-    min-width: 150px; 
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
-    z-index: 9999; 
-    border-radius: 8px; 
-    border: 1px solid #eee;
-    padding: 8px 0;
-  }
-  .dropdown:hover .dropdown-content { display: block; }
-  .dropdown-content a { color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 0.85rem; transition: background 0.2s; }
-  .dropdown-content a:hover { background-color: #f8f9fa; }
+  .action-select-box { background: #fdfdfd; font-weight: 600; }
 
   @media (max-width: 1024px) {
     .form-grid { grid-template-columns: 1fr 1fr; }
