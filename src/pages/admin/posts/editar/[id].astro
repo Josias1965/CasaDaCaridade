@@ -148,13 +148,16 @@ if (!authorized) {
          updateData.published_at = new Date().toISOString();
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('posts')
         .update(updateData)
-        .eq('id', postId);
+        .eq('id', postId)
+        .select();
 
       if (error) {
         alert('Erro ao atualizar: ' + error.message);
+      } else if (!data || data.length === 0) {
+        alert('🚫 Sem permissão: Você não tem autorização para editar este post.');
       } else {
         alert('Post atualizado com sucesso!');
         window.location.href = '/admin/dashboard';
@@ -164,13 +167,16 @@ if (!authorized) {
     // Excluir
     document.getElementById('delete-btn').addEventListener('click', async () => {
       if (confirm('Tem certeza que deseja excluir este post?')) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('posts')
           .delete()
-          .eq('id', postId);
+          .eq('id', postId)
+          .select();
 
         if (error) {
           alert('Erro ao excluir: ' + error.message);
+        } else if (!data || data.length === 0) {
+          alert('🚫 Sem permissão: Você não tem autorização para excluir este post.');
         } else {
           alert('Post excluído com sucesso!');
           window.location.href = '/admin/dashboard';
