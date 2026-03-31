@@ -1,0 +1,122 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAuth } from '../../../lib/permissions.js';
+
+const { authorized } = await requireAuth(Astro.cookies);
+if (!authorized) return Astro.redirect('/admin/login');
+---
+
+<AdminLayout title="Cadastrar Usuário">
+  <div class="admin-form-container">
+    <header class="page-header">
+      <a href="/admin/dashboard" class="back-link">← Voltar</a>
+      <h1>Cadastrar Novo Administrador</h1>
+    </header>
+
+    <form id="register-form" class="admin-form shadow-sm">
+      <div class="form-group">
+        <label for="display_name">Nome de Exibição</label>
+        <input type="text" id="display_name" required placeholder="Ex: João Silva" />
+      </div>
+
+      <div class="form-group">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" required placeholder="email@exemplo.com" />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Senha Temporária</label>
+        <input type="password" id="password" required minlength="6" />
+        <small>O usuário receberá um e-mail de confirmação.</small>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Criar Usuário</button>
+      </div>
+
+      <div id="status-message" style="display: none; margin-top: 20px; padding: 15px; border-radius: 4px;"></div>
+    </form>
+  </div>
+
+  <script>
+    import { supabase } from '../../../lib/supabase.js';
+
+    const form = document.getElementById('register-form');
+    const msgDiv = document.getElementById('status-message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const displayName = document.getElementById('display_name').value;
+
+      msgDiv.style.display = 'block';
+      msgDiv.style.background = '#f0f0f0';
+      msgDiv.textContent = 'Criando conta...';
+
+      // Criar usuário no Auth
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: displayName
+          }
+        }
+      });
+
+      if (error) {
+        msgDiv.style.background = '#fff0f0';
+        msgDiv.style.color = '#e03131';
+        msgDiv.textContent = `Erro: ${error.message}`;
+      } else {
+        msgDiv.style.background = '#f2fcf2';
+        msgDiv.style.color = '#0ca678';
+        msgDiv.textContent = 'Usuário cadastrado com sucesso! Um e-mail de confirmação foi enviado.';
+        form.reset();
+      }
+    });
+  </script>
+</AdminLayout>
+
+<style>
+  .admin-form-container {
+    padding: 20px 0;
+  }
+  .page-header {
+    margin-bottom: 30px;
+  }
+  .back-link {
+    display: inline-block;
+    margin-bottom: 10px;
+    color: #666;
+    text-decoration: none;
+  }
+  .admin-form {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 600px;
+  }
+  .form-group {
+    margin-bottom: 20px;
+  }
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    outline: none;
+  }
+  small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+  }
+</style>

@@ -1,0 +1,100 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Recuperar Senha - Admin">
+  <div class="login-container">
+    <h1>Recuperar Acesso</h1>
+    <p class="description">Insira seu e-mail para receber as instruções de redefinição.</p>
+    
+    <form id="recovery-form">
+      <input 
+        type="email" 
+        id="email" 
+        placeholder="E-mail" 
+        required 
+      />
+      <button type="submit" class="btn-primary">Enviar Instruções</button>
+    </form>
+
+    <div class="login-footer">
+      <a href="/admin/login" class="back-link">Voltar para o Login</a>
+    </div>
+
+    <div id="message" style="display: none; margin-top: 15px; padding: 10px; border-radius: 4px;"></div>
+  </div>
+
+  <script>
+    import { supabase } from '../../lib/supabase.js';
+
+    const form = document.getElementById('recovery-form');
+    const msgDiv = document.getElementById('message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      
+      msgDiv.style.display = 'block';
+      msgDiv.style.background = '#f0f0f0';
+      msgDiv.textContent = 'Enviando...';
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/admin/redefinir-senha`,
+      });
+
+      if (error) {
+        msgDiv.style.background = '#fff0f0';
+        msgDiv.style.color = '#e03131';
+        msgDiv.textContent = error.message;
+      } else {
+        msgDiv.style.background = '#f2fcf2';
+        msgDiv.style.color = '#0ca678';
+        msgDiv.textContent = 'Enviamos as instruções para o seu e-mail! Verifique sua caixa de entrada.';
+        form.reset();
+      }
+    });
+  </script>
+</BaseLayout>
+
+<style>
+  .login-container {
+    max-width: 400px;
+    margin: 100px auto;
+    padding: 40px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 1.5rem;
+    color: var(--secondary);
+  }
+  .description {
+    text-align: center;
+    color: #666;
+    margin-bottom: 25px;
+    font-size: 0.95rem;
+  }
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  input {
+    padding: 12px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    outline: none;
+  }
+  .login-footer {
+    margin-top: 20px;
+    text-align: center;
+  }
+  .back-link {
+    font-size: 0.9rem;
+    color: #666;
+    text-decoration: none;
+  }
+</style>
