@@ -39,7 +39,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       msgDiv.textContent = 'Enviando...';
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/admin/redefinir-senha`,
+        redirectTo: `https://casadacaridade.vercel.app/admin/redefinir-senha`,
       });
 
       if (error) {
