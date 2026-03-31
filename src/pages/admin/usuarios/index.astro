@@ -57,6 +57,10 @@ if (!authorized) return Astro.redirect('/admin/login');
     const tableContainer = document.getElementById('users-table-container');
 
     async function loadUsers() {
+      // Primeiro, pegar o usuário logado no Auth
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Buscar todos os perfis
       const { data: profiles, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -67,32 +71,50 @@ if (!authorized) return Astro.redirect('/admin/login');
         return;
       }
 
+      // Se não houver nenhum perfil (nem o do administrador atual)
+      // é provável que o trigger não tenha rodado para usuários antigos.
+      if (profiles.length === 0 && user) {
+        // Criar o perfil do administrador logado agora mesmo
+        const { error: insertError } = await supabase
+          .from('user_profiles')
+          .insert([{ 
+            id: user.id, 
+            display_name: user.user_metadata.display_name || user.email.split('@')[0], 
+            role_id: 1 // Admin
+          }]);
+        
+        if (!insertError) {
+          loadUsers(); // Recarrega para mostrar o novo perfil
+          return;
+        }
+      }
+
+      if (profiles.length === 0) {
+        tableContainer.innerHTML = '<p>Nenhum administrador cadastrado no banco de dados.</p>';
+        return;
+      }
+
       tableContainer.innerHTML = `
         <table class="admin-table">
           <thead>
             <tr>
-              <th>Nome</th>
+              <th style="width: 30%">Nome</th>
+              <th style="width: 30%">E-mail</th>
               <th>Criação</th>
-              <th>Permissão</th>
-              <th>Ações</th>
+              <th style="text-align: right">Ações</th>
             </tr>
           </thead>
           <tbody>
             ${profiles.map(u => `
               <tr>
-                <td>
-                  <div class="user-info">
-                    <strong>${u.display_name}</strong>
-                    <span class="user-email">${u.email || ''}</span>
-                  </div>
-                </td>
-                <td>${new Date(u.created_at).toLocaleDateString()}</td>
-                <td><span class="role-badge admin">Admin</span></td>
-                <td>
+                <td class="user-name">${u.display_name}</td>
+                <td style="color: #666; font-size: 0.9rem;">${u.email || 'Admin'}</td>
+                <td>${u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '-'}</td>
+                <td style="text-align: right">
                   <div class="dropdown">
                     <button class="btn-dots">⋮</button>
                     <div class="dropdown-content">
-                      <a href="#" onclick="alert('Função em desenvolvimento')">Alterar</a>
+                      <a href="#" class="edit-user">Alterar</a>
                       <a href="#" class="delete-user" data-id="${u.id}" style="color: #fa5252">Remover</a>
                     </div>
                   </div>
@@ -167,12 +189,10 @@ if (!authorized) return Astro.redirect('/admin/login');
   .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
   .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
 
-  .admin-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  .admin-table th { text-align: left; background: #fafafa; padding: 12px; border-bottom: 2px solid #f0f0f0; color: #666; font-size: 0.85rem; text-transform: uppercase; }
-  .admin-table td { padding: 15px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
-
-  .user-info { display: flex; flex-direction: column; }
-  .user-email { font-size: 0.8rem; color: #888; }
+  .admin-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  .admin-table th { text-align: left; background: #f8f9fa; padding: 15px; border-bottom: 2px solid #eee; color: #444; font-size: 0.9rem; font-weight: 700; }
+  .admin-table td { padding: 15px; border-bottom: 1px solid #f2f2f2; vertical-align: middle; }
+  .user-name { font-weight: 600; color: #333; }
   .role-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; background: #e7f5ff; color: #1971c2; }
 
   /* Dropdown Styles */
