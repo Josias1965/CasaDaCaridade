@@ -188,19 +188,28 @@ if (post.video_url) {
     border-left: 4px solid var(--primary);
     padding-left: 20px;
     margin-bottom: 40px;
-    white-space: pre-wrap;
+    white-space: pre-line;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
   }
   .post-content {
     font-size: 1.1rem;
     line-height: 1.8;
     color: #333;
-    white-space: pre-wrap;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
+    word-break: break-word;
   }
   .post-content :global(p) {
-    margin-bottom: 25px;
+    margin-bottom: 0.8rem;
+    text-align: justify;
+    hyphens: auto;
   }
-  .post-content :global(h2) {
+  .post-content :global(h2), .post-content :global(h3) {
     margin: 40px 0 20px;
+    text-align: left; /* Titles should not be justified */
   }
   .video-container {
     position: relative;
