@@ -36,7 +36,7 @@ function getAudioUrl(url) {
     } else if (cleanUrl.includes('id=')) {
       id = cleanUrl.split('id=')[1]?.split('&')[0];
     }
-    return id ? `https://docs.google.com/uc?export=download&id=${id}` : cleanUrl;
+    return id ? `https://docs.google.com/uc?id=${id}&export=download` : cleanUrl;
   }
   return cleanUrl;
 }
@@ -100,7 +100,7 @@ const audioUrl = getAudioUrl(post.audio_url);
         <div class="audio-section">
           <h3>Versão em Áudio</h3>
           <div class="audio-player-container">
-            <audio controls preload="none" class="audio-player">
+            <audio controls preload="metadata" class="audio-player">
               <source src={audioUrl} type="audio/mpeg" />
               Seu navegador não suporta o player de áudio.
             </audio>
