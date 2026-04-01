@@ -36,8 +36,8 @@ function getAudioUrl(url: string) {
     } else if (cleanUrl.includes('id=')) {
       id = cleanUrl.split('id=')[1]?.split('&')[0];
     }
-    // O prefixo lh3.googleusercontent.com/d/ID é mais estável para streaming
-    return id ? `https://lh3.googleusercontent.com/d/${id}` : cleanUrl;
+    // O prefixo drive.google.com/uc?id=ID é o mais compatível
+    return id ? `https://drive.google.com/uc?id=${id}&export=download` : cleanUrl;
   }
   return cleanUrl;
 }
@@ -98,20 +98,47 @@ const audioUrl = getAudioUrl(post.audio_url);
       <div class="post-content" set:html={post.content} />
 
       {audioUrl && (
-        <div class="audio-section">
+        <div class="audio-section" id="audio-container">
           <h3>Versão em Áudio</h3>
-          <div class="audio-player-container">
-            <audio controls preload="metadata" class="audio-player">
+          <div class="audio-player-container" id="player-wrapper">
+            <audio id="post-audio" controls preload="metadata" class="audio-player">
               <source src={audioUrl} type="audio/mpeg" />
-              <source src={audioUrl.replace('lh3.googleusercontent.com/d/', 'docs.google.com/uc?id=')} type="audio/mpeg" />
+              <source src={audioUrl.replace('export=download', 'export=media')} type="audio/mpeg" />
               Seu navegador não suporta o player de áudio.
             </audio>
             <div class="audio-fallback">
-              <p>Problemas com o player? <a href={audioUrl} target="_blank" rel="noopener noreferrer" download>Clique aqui para baixar o áudio</a>.</p>
+              <p>Problemas com o player? <a href={audioUrl} target="_blank" rel="noopener noreferrer">Baixar arquivo MP3</a>.</p>
             </div>
           </div>
         </div>
       )}
+
+      <script is:inline define:vars={{ audioUrl }}>
+        const audio = document.getElementById('post-audio');
+        const wrapper = document.getElementById('player-wrapper');
+        
+        if (audio) {
+          audio.addEventListener('error', function() {
+            console.log('Erro ao carregar o player nativo, tentando alternativa...');
+            if (audioUrl.includes('id=')) {
+              const id = audioUrl.split('id=')[1].split('&')[0];
+              // Se o player nativo falhar, usamos o player oficial do Google Drive via iframe
+              wrapper.innerHTML = `
+                <iframe 
+                  src="https://drive.google.com/file/d/${id}/preview" 
+                  width="100%" 
+                  height="150" 
+                  style="border-radius: 12px; border: none;"
+                  allow="autoplay"
+                ></iframe>
+                <div class="audio-fallback">
+                  <p>Usando player de contingência. <a href="${audioUrl}" target="_blank">Baixar áudio</a></p>
+                </div>
+              `;
+            }
+          });
+        }
+      </script>
 
       {embedUrl && (
         <div class="video-container">
