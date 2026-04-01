@@ -130,38 +130,32 @@ if (!authorized) {
     let quill: any;
 
     function initQuill() {
-      // @ts-ignore
-      if (typeof Quill === 'undefined') {
-        console.log('Quill not loaded yet, retrying...');
-        setTimeout(initQuill, 100);
+      const Quill = (window as any).Quill;
+      if (!Quill) {
+        setTimeout(initQuill, 200);
         return;
       }
 
-      // Registrar formato de espaçamento entre linhas
-      // @ts-ignore
-      // @ts-ignore
+      // Prevenir inicialização duplicada
+      if (document.querySelector('.ql-editor')) return;
+
       const Parchment = Quill.import('parchment');
       const LineHeightStyle = new Parchment.Attributor.Style('lineheight', 'line-height', {
         scope: Parchment.Scope.BLOCK
       });
-      // @ts-ignore
       Quill.register(LineHeightStyle, true);
 
-      // @ts-ignore
       quill = new Quill('#editor', {
         modules: {
           toolbar: '#editor-toolbar'
         },
         theme: 'snow'
       });
-
-      // Para line-height no Quill Snow, precisamos do CSS para as labels
-      // O Quill cuidará do evento 'change' automaticamente se usarmos a classe ql-lineheight
     }
 
     // Auto-slug
-    const titleInput = document.getElementById('title') as HTMLInputElement;
-    const slugInput = document.getElementById('slug') as HTMLInputElement;
+    const titleInput = document.getElementById('title') as HTMLInputElement | null;
+    const slugInput = document.getElementById('slug') as HTMLInputElement | null;
  
     if (titleInput && slugInput) {
       titleInput.addEventListener('input', (e) => {
@@ -175,6 +169,7 @@ if (!authorized) {
       // @ts-ignore
       slugInput.value = slug;
     });
+  }
 
     async function loadCategories() {
       const { data } = await supabase
@@ -197,50 +192,65 @@ if (!authorized) {
     }
 
     // Salvar
-    document.getElementById('post-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    const postForm = document.getElementById('post-form');
+    if (postForm) {
+      postForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-      // Sync Quill content to hidden input
-      const contentInput = document.getElementById('content') as HTMLInputElement;
-      if (quill && contentInput) contentInput.value = quill.root.innerHTML;
+        // Sync Quill content to hidden input
+        const contentInput = document.getElementById('content') as HTMLInputElement;
+        if (quill && contentInput) contentInput.value = quill.root.innerHTML;
 
-      if (!contentInput.value || contentInput.value === '<p><br></p>') {
-          alert('Por favor, escreva algum conteúdo para o post.');
+        if (!contentInput || !contentInput.value || contentInput.value === '<p><br></p>') {
+            alert('Por favor, escreva algum conteúdo para o post.');
+            return;
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          alert('Sessão expirada. Por favor, faça login novamente.');
           return;
-      }
+        }
 
-      const { data: { user } } = await supabase.auth.getUser();
+        const postData = {
+          title: (document.getElementById('title') as HTMLInputElement).value,
+          slug: (document.getElementById('slug') as HTMLInputElement).value,
+          excerpt: (document.getElementById('excerpt') as HTMLTextAreaElement).value,
+          content: contentInput.value,
+          category_id: (document.getElementById('category') as HTMLSelectElement).value || null,
+          featured_image: (document.getElementById('featured_image') as HTMLInputElement).value || null,
+          video_url: (document.getElementById('video_url') as HTMLInputElement).value || null,
+          status: (document.getElementById('status') as HTMLSelectElement).value,
+          author_id: user.id,
+          published_at: (document.getElementById('status') as HTMLSelectElement).value === 'published' 
+            ? new Date().toISOString() 
+            : null,
+        };
 
-      const postData = {
-        title: (document.getElementById('title') as HTMLInputElement).value,
-        slug: (document.getElementById('slug') as HTMLInputElement).value,
-        excerpt: (document.getElementById('excerpt') as HTMLTextAreaElement).value,
-        content: contentInput.value,
-        category_id: (document.getElementById('category') as HTMLSelectElement).value || null,
-        featured_image: (document.getElementById('featured_image') as HTMLInputElement).value || null,
-        video_url: (document.getElementById('video_url') as HTMLInputElement).value || null,
-        status: (document.getElementById('status') as HTMLSelectElement).value,
-        author_id: user.id,
-        published_at: (document.getElementById('status') as HTMLSelectElement).value === 'published' 
-          ? new Date().toISOString() 
-          : null,
-      };
+        const { error } = await supabase
+          .from('posts')
+          .insert([postData])
+          .select();
 
-      const { data, error } = await supabase
-        .from('posts')
-        .insert([postData])
-        .select();
+        if (error) {
+          alert('Erro ao salvar: ' + error.message);
+        } else {
+          alert('Post criado com sucesso!');
+          window.location.href = '/admin/dashboard';
+        }
+      });
+    }
 
-      if (error) {
-        alert('Erro ao salvar: ' + error.message);
-      } else {
-        alert('Post criado com sucesso!');
-        window.location.href = '/admin/dashboard';
-      }
-    });
-
-    initQuill();
-    loadCategories();
+    // Inicialização
+    if (document.readyState === 'complete') {
+      initQuill();
+      loadCategories();
+    } else {
+      window.addEventListener('load', () => {
+        initQuill();
+        loadCategories();
+      });
+    }
   </script>
 </AdminLayout>
 

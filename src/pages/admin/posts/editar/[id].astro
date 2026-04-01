@@ -126,43 +126,10 @@ if (!authorized) {
 
     let quill: any;
 
-    function initQuill() {
-      // @ts-ignore
-      if (typeof Quill === 'undefined') {
-        console.log('Quill not loaded yet, retrying...');
-        setTimeout(initQuill, 100);
-        return;
-      }
-
-      // Registrar formato de espaçamento entre linhas
-      // @ts-ignore
-      // @ts-ignore
-      const Parchment = Quill.import('parchment');
-      const LineHeightStyle = new Parchment.Attributor.Style('lineheight', 'line-height', {
-        scope: Parchment.Scope.BLOCK
-      });
-      // @ts-ignore
-      Quill.register(LineHeightStyle, true);
-
-      // @ts-ignore
-      quill = new Quill('#editor', {
-        modules: {
-          toolbar: '#editor-toolbar'
-        },
-        theme: 'snow'
-      });
-
-      // Para line-height no Quill Snow, precisamos do CSS para as labels
-      // O Quill cuidará do evento 'change' automaticamente se usarmos a classe ql-lineheight
-      
-      // Carregar dados do post
-      loadPost();
-    }
-
-    const postId = (document.getElementById('post-id') as HTMLInputElement).value;
-
     // Carregar dados do post
     async function loadPost() {
+      if (!postId) return;
+      
       const { data: post, error } = await supabase
         .from('posts')
         .select('*')
@@ -170,32 +137,65 @@ if (!authorized) {
         .single();
 
       if (error) {
-        alert('Erro ao carregar post: ' + error.message);
+        console.error('Erro ao carregar post:', error);
         return;
       }
 
-      (document.getElementById('title') as HTMLInputElement).value = post.title;
-      (document.getElementById('slug') as HTMLInputElement).value = post.slug;
-      (document.getElementById('excerpt') as HTMLTextAreaElement).value = post.excerpt || '';
+      const titleInput = document.getElementById('title') as HTMLInputElement;
+      const slugInput = document.getElementById('slug') as HTMLInputElement;
+      const excerptInput = document.getElementById('excerpt') as HTMLTextAreaElement;
+      const statusInput = document.getElementById('status') as HTMLSelectElement;
+      const featuredImageInput = document.getElementById('featured_image') as HTMLInputElement;
+      const videoUrlInput = document.getElementById('video_url') as HTMLInputElement;
+
+      if (titleInput) titleInput.value = post.title || '';
+      if (slugInput) slugInput.value = post.slug || '';
+      if (excerptInput) excerptInput.value = post.excerpt || '';
+      if (statusInput) statusInput.value = post.status || 'draft';
+      if (featuredImageInput) featuredImageInput.value = post.featured_image || '';
+      if (videoUrlInput) videoUrlInput.value = post.video_url || '';
       
       // Set Quill content
       if (quill) {
         let content = post.content || '';
-        // Se o conteúdo não parece ter HTML (não começa com <), vamos tratar como texto puro
-        // para que o Quill separe as linhas em parágrafos corretamente
         if (content && !content.trim().startsWith('<')) {
           content = content.split('\n').filter(line => line.trim() !== '').map(line => `<p>${line}</p>`).join('');
         }
         quill.root.innerHTML = content;
       }
       
-      (document.getElementById('status') as HTMLSelectElement).value = post.status;
-      (document.getElementById('featured_image') as HTMLInputElement).value = post.featured_image || '';
-      (document.getElementById('video_url') as HTMLInputElement).value = post.video_url || '';
-
-      // Set category after loading categories
       await loadCategories(post.category_id);
     }
+
+    function initQuill() {
+      // @ts-ignore
+      const Quill = (window as any).Quill;
+      if (!Quill) {
+        setTimeout(initQuill, 200);
+        return;
+      }
+
+      // Prevenir inicialização duplicada
+      if (document.querySelector('.ql-editor')) return;
+
+      const Parchment = Quill.import('parchment');
+      const LineHeightStyle = new Parchment.Attributor.Style('lineheight', 'line-height', {
+        scope: Parchment.Scope.BLOCK
+      });
+      Quill.register(LineHeightStyle, true);
+
+      quill = new Quill('#editor', {
+        modules: {
+          toolbar: '#editor-toolbar'
+        },
+        theme: 'snow'
+      });
+
+      loadPost();
+    }
+
+    const postId = (document.getElementById('post-id') as HTMLInputElement).value;
+
 
     async function loadCategories(currentCatId: any) {
       const { data } = await supabase
@@ -275,10 +275,16 @@ if (!authorized) {
       }
     });
 
-    loadPost(); // Fallback for components that might not need Quill
-    initQuill();
-    // @ts-ignore
-    loadCategories();
+    // Inicialização
+    if (document.readyState === 'complete') {
+      initQuill();
+      loadCategories(null);
+    } else {
+      window.addEventListener('load', () => {
+        initQuill();
+        loadCategories(null);
+      });
+    }
   </script>
 </AdminLayout>
 
