@@ -1,5 +1,5 @@
 ---
-// src/pages/index.astro
+// src/pages/home.astro
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
@@ -7,13 +7,11 @@ import BlogCard from '../components/BlogCard.astro';
 import { supabase } from '../lib/supabase.js';
 
 // Função para converter link do Google Drive em link direto de imagem
-function getImageUrl(url) {
+function getImageUrl(url: string) {
   if (!url || url === '' || url.includes('exemplo.com')) {
     return 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=2070&auto=format&fit=crop';
   }
-  
   const cleanUrl = url.trim();
-  
   if (cleanUrl.includes('drive.google.com')) {
     let id = '';
     if (cleanUrl.includes('/file/d/')) {
@@ -21,58 +19,56 @@ function getImageUrl(url) {
     } else if (cleanUrl.includes('id=')) {
       id = cleanUrl.split('id=')[1]?.split('&')[0];
     }
-    
-    // O servidor de thumbnail do Google é o MAIS COMPATÍVEL para ambientes locais (localhost)
     return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1200` : cleanUrl;
   }
-  
   return cleanUrl;
 }
 
-// Buscar posts publicados de forma resiliente
 const { data: posts, error } = await supabase
   .from('posts')
-  .select(`
-    *,
-    categories (name, slug)
-  `)
+  .select(`*, categories (name, slug)`)
   .eq('status', 'published')
   .order('published_at', { ascending: false })
   .limit(10);
 
-// Buscar nomes de autores separadamente para evitar erro de JOIN no Supabase
 const authorIds = posts?.map(p => p.author_id) || [];
-const { data: authors } = await supabase
-  .from('user_profiles')
-  .select('id, display_name')
-  .in('id', authorIds);
-
+const { data: authors } = await supabase.from('user_profiles').select('id, display_name').in('id', authorIds);
 const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) || []);
-
-if (error) {
-  console.error("Supabase error:", error);
-}
 ---
 
-<BaseLayout title="Blog">
+<BaseLayout title="Casa da Caridade - Blog">
   <Header />
   <main>
-    <section class="hero">
-      <div class="container hero-content">
-        <h1>Bem-vindo ao Nosso Blog</h1>
-        <p>Casa da Caridade: Compartilhando amor e espiritualidade em cada palavra.</p>
+    <section class="split-hero">
+      <div class="container hero-grid">
+        <div class="hero-text">
+          <span class="badge">Seja muito bem-vindo</span>
+          <h1>Espiritualidade e Fé em <span>cada palavra</span></h1>
+          <p>Casa da Caridade: Compartilhando amor, luz e sabedoria para o seu dia a dia.</p>
+          <div class="hero-actions">
+            <a href="#fluxo" class="btn-primary">Ver Posts Recentes</a>
+            <a href="/sobre" class="btn-outline">Conheça Nossa Casa</a>
+          </div>
+        </div>
+        
+        <div class="hero-video-wrapper">
+          <div class="sequence-container">
+            <canvas id="sequence-canvas"></canvas>
+            <div class="glass-overlay"></div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section class="posts-grid-section">
+    <section id="fluxo" class="posts-grid-section">
       <div class="container">
-        <h2 class="section-title">Posts Recentes</h2>
+        <h2 class="section-title">Nossas Reflexões</h2>
         <div class="posts-grid">
           {posts && posts.length > 0 ? (
             posts.map(post => (
               <BlogCard 
                 title={post.title}
-                excerpt={post.excerpt ? (post.excerpt.length > 300 ? post.excerpt.substring(0, 300) + '...' : post.excerpt) : ''}
+                excerpt={post.excerpt ? (post.excerpt.length > 200 ? post.excerpt.substring(0, 200) + '...' : post.excerpt) : ''}
                 slug={post.slug}
                 image={getImageUrl(post.featured_image)}
                 category={post.categories?.name}
@@ -81,7 +77,7 @@ if (error) {
               />
             ))
           ) : (
-            <p>Nenhum post encontrado. Comece a escrever!</p>
+            <p>Nenhum post encontrado.</p>
           )}
         </div>
       </div>
@@ -90,46 +86,170 @@ if (error) {
   <Footer />
 </BaseLayout>
 
-<style>
-  .hero {
-    background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
-    color: white;
-    padding: 100px 0;
-    text-align: center;
-    margin-bottom: 50px;
+<script is:inline>
+  // Lógica do Player de Sequência (VÍDEO)
+  const canvas = document.getElementById('sequence-canvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    const images = [];
+    const totalFrames = 60; // Suas 60 imagens
+    let currentFrame = 0;
+
+    // Carregar imagens
+    for (let i = 0; i < totalFrames; i++) {
+        const img = new Image();
+        // Formato: 20260402_122620_UTC_0_000.jpg até 059.jpg
+        const frameNumber = i.toString().padStart(3, '0');
+        img.src = `/images/hero/20260402_122620_UTC_0_${frameNumber}.jpg`;
+        images.push(img);
+    }
+
+    function resizeCanvas() {
+        const parent = canvas.parentElement;
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+    }
+
+    function render() {
+        const img = images[currentFrame];
+        if (img.complete) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Desenhar imagem mantendo o aspecto "cover"
+            const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+            const x = (canvas.width / 2) - (img.width / 2) * scale;
+            const y = (canvas.height / 2) - (img.height / 2) * scale;
+            ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+        }
+        
+        currentFrame = (currentFrame + 1) % totalFrames;
+        setTimeout(() => requestAnimationFrame(render), 60); // Ajuste a velocidade aqui (60ms ~ 16fps)
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    render();
   }
-  .hero h1 {
-    font-size: 3rem;
+</script>
+
+<style>
+  .split-hero {
+    background: #fff;
+    padding: 80px 0;
+    overflow: hidden;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+  }
+  
+  .badge {
+    background: var(--primary-light, #e0f2f1);
+    color: var(--primary);
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: inline-block;
     margin-bottom: 20px;
   }
-  .hero p {
-    font-size: 1.2rem;
-    opacity: 0.9;
-    max-width: 600px;
-    margin: 0 auto;
+
+  .hero-text h1 {
+    font-size: 3.5rem;
+    line-height: 1.1;
+    color: var(--text-dark);
+    margin-bottom: 24px;
+    font-weight: 800;
   }
+  .hero-text h1 span {
+    background: linear-gradient(120deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero-text p {
+    font-size: 1.2rem;
+    color: #555;
+    margin-bottom: 40px;
+    line-height: 1.6;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 15px;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 150, 136, 0.3);
+  }
+  .btn-outline {
+    border: 2px solid #ddd;
+    color: var(--text-dark);
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 150, 136, 0.4);
+  }
+
+  /* Sequence Video Styling */
+  .hero-video-wrapper {
+    position: relative;
+    width: 100%;
+    height: 500px;
+  }
+  .sequence-container {
+    width: 100%;
+    height: 100%;
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+  }
+  #sequence-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #000;
+  }
+  .glass-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.2) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
   .section-title {
     margin-bottom: 40px;
-    font-size: 2rem;
+    font-size: 2.2rem;
     color: var(--text-dark);
-    position: relative;
-  }
-  .section-title::after {
-    content: '';
-    position: absolute;
-    bottom: -10px;
-    left: 0;
-    width: 60px;
-    height: 4px;
-    background: var(--primary);
   }
   .posts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 30px;
   }
-  @media (max-width: 768px) {
-    .hero h1 { font-size: 2rem; }
-    .posts-grid { grid-template-columns: 1fr; }
+
+  @media (max-width: 1024px) {
+    .hero-grid { grid-template-columns: 1fr; text-align: center; gap: 40px; }
+    .hero-text h1 { font-size: 2.5rem; }
+    .hero-text p { margin: 0 auto 30px; }
+    .hero-actions { justify-content: center; }
+    .hero-video-wrapper { height: 400px; }
   }
 </style>
