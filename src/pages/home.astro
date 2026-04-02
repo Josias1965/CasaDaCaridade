@@ -324,6 +324,20 @@ const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) 
     .main-content { order: 1; }
     .posts-grid { grid-template-columns: 1fr; }
   }
+
+  @media (max-width: 768px) {
+    .horizontal-banner {
+      height: 350px; 
+    }
+    .horizontal-banner img {
+      object-fit: contain;
+      background-color: #0b1120; /* Fundo escuro para a arte não ficar com bordas brancas vazias */
+    }
+    .horizontal-overlay {
+      font-size: 1.1rem;
+      padding: 20px 15px;
+    }
+  }
 </style>
 
 </style>
