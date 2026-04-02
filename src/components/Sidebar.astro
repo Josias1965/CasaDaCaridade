@@ -30,10 +30,13 @@ if (error) {
     </ul>
   </div>
 
-  <div class="sidebar-widget banner-widget">
-    <div class="banner-placeholder">
-      <span>Espaço para Banner</span>
-    </div>
+  <div class="sidebar-widget">
+    <a href="/contato" class="sidebar-banner">
+      <img src="/images/banner-lateral.png" alt="Banner Informativo" onerror="this.style.display='none'; this.parentElement.classList.add('fallback-banner');" />
+      <div class="banner-overlay">
+        <span>Participe das nossas atividades</span>
+      </div>
+    </a>
   </div>
 </aside>
 
@@ -97,16 +100,53 @@ if (error) {
     transform: translateX(5px);
   }
 
-  .banner-placeholder {
+  .sidebar-banner {
+    display: block;
+    position: relative;
     width: 100%;
-    height: 300px;
-    background: #eee;
+    min-height: 350px;
     border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #00796b, #4db6ac);
+    text-decoration: none;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  }
+
+  .sidebar-banner:hover {
+    transform: translateY(-5px);
+  }
+
+  .sidebar-banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .sidebar-banner.fallback-banner {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #999;
+    padding: 30px;
+    text-align: center;
+  }
+
+  .banner-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 40px 20px 20px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    color: white;
     font-weight: 600;
-    border: 2px dashed #ccc;
+    font-size: 1.1rem;
+    line-height: 1.4;
+    transition: padding-bottom 0.3s ease;
+  }
+
+  .sidebar-banner:hover .banner-overlay {
+    padding-bottom: 30px;
   }
 </style>
