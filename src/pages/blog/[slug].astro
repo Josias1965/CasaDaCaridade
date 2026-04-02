@@ -3,6 +3,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
+import Sidebar from '../../components/Sidebar.astro';
 import { supabase } from '../../lib/supabase.js';
 
 const { slug } = Astro.params;
@@ -36,7 +37,6 @@ function getAudioUrl(url: string) {
     } else if (cleanUrl.includes('id=')) {
       id = cleanUrl.split('id=')[1]?.split('&')[0];
     }
-    // O prefixo drive.google.com/uc?id=ID é o mais compatível
     return id ? `https://drive.google.com/uc?id=${id}&export=download` : cleanUrl;
   }
   return cleanUrl;
@@ -79,75 +79,81 @@ const audioUrl = getAudioUrl(post.audio_url);
 <BaseLayout title={post.title}>
   <Header />
   <article class="post-page">
-    <div class="container narrow-container">
-      <header class="post-header">
-        <div class="post-meta">
-          <span class="category">{post.categories?.name}</span>
-        </div>
-        <h1>{post.title}</h1>
-      </header>
+    <div class="container layout-grid">
+      <div class="main-content">
+        <header class="post-header">
+          <div class="post-meta">
+            <span class="category">{post.categories?.name}</span>
+          </div>
+          <h1>{post.title}</h1>
+        </header>
 
-      <img src={getImageUrl(post.featured_image)} alt={post.title} class="featured-image" />
+        <img src={getImageUrl(post.featured_image)} alt={post.title} class="featured-image" />
 
-      {post.excerpt && (
-        <div class="post-excerpt">
-          <p>{post.excerpt}</p>
-        </div>
-      )}
+        {post.excerpt && (
+          <div class="post-excerpt">
+            <p>{post.excerpt}</p>
+          </div>
+        )}
 
-      <div class="post-content" set:html={post.content} />
+        <div class="post-content" set:html={post.content} />
 
-      {audioUrl && (
-        <div class="audio-section">
-          <h3>Versão em Áudio</h3>
-          <div class="audio-player-container">
-            {audioUrl.includes('drive.google.com') ? (
-              <iframe 
-                src={audioUrl.includes('id=') 
-                  ? `https://drive.google.com/file/d/${audioUrl.split('id=')[1].split('&')[0]}/preview`
-                  : audioUrl.replace('/view', '') + '/preview'}
-                width="100%" 
-                height="150" 
-                style="border-radius: 12px; border: 1px solid #eee; background: #fafafa;"
-                allow="autoplay"
-              ></iframe>
-            ) : (
-              <audio controls preload="metadata" class="audio-player">
-                <source src={audioUrl} type="audio/mpeg" />
-                Seu navegador não suporta o player de áudio.
-              </audio>
-            )}
-            <div class="audio-fallback">
-              <p>Problemas com o player? <a href={audioUrl} target="_blank" rel="noopener noreferrer">Baixar arquivo MP3</a>.</p>
+        {audioUrl && (
+          <div class="audio-section">
+            <h3>Versão em Áudio</h3>
+            <div class="audio-player-container">
+              {audioUrl.includes('drive.google.com') ? (
+                <iframe 
+                  src={audioUrl.includes('id=') 
+                    ? `https://drive.google.com/file/d/${audioUrl.split('id=')[1].split('&')[0]}/preview`
+                    : audioUrl.replace('/view', '') + '/preview'}
+                  width="100%" 
+                  height="150" 
+                  style="border-radius: 12px; border: 1px solid #eee; background: #fafafa;"
+                  allow="autoplay"
+                ></iframe>
+              ) : (
+                <audio controls preload="metadata" class="audio-player">
+                  <source src={audioUrl} type="audio/mpeg" />
+                  Seu navegador não suporta o player de áudio.
+                </audio>
+              )}
+              <div class="audio-fallback">
+                <p>Problemas com o player? <a href={audioUrl} target="_blank" rel="noopener noreferrer">Baixar arquivo MP3</a>.</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {embedUrl && (
-        <div class="video-container">
-          <iframe 
-            src={embedUrl} 
-            title="YouTube video player" 
-            frameborder="0" 
-            allowfullscreen="true"
-          ></iframe>
-        </div>
-      )}
-
-      <footer class="post-footer">
-        <div class="author-info-footer">
-          {post.user_profiles?.avatar_url ? (
-            <img src={post.user_profiles.avatar_url} alt={post.user_profiles.display_name} class="avatar" />
-          ) : (
-            <div class="avatar-placeholder"></div>
-          )}
-          <div class="author-details">
-            <span class="author">Por <strong>{post.user_profiles?.display_name || 'Administrador'}</strong></span>
-            <span class="date">{post.published_at ? new Date(post.published_at).toLocaleDateString() : ''}</span>
+        {embedUrl && (
+          <div class="video-container">
+            <iframe 
+              src={embedUrl} 
+              title="YouTube video player" 
+              frameborder="0" 
+              allowfullscreen="true"
+            ></iframe>
           </div>
-        </div>
-      </footer>
+        )}
+
+        <footer class="post-footer">
+          <div class="author-info-footer">
+            {post.user_profiles?.avatar_url ? (
+              <img src={post.user_profiles.avatar_url} alt={post.user_profiles.display_name} class="avatar" />
+            ) : (
+              <div class="avatar-placeholder"></div>
+            )}
+            <div class="author-details">
+              <span class="author">Por <strong>{post.user_profiles?.display_name || 'Administrador'}</strong></span>
+              <span class="date">{post.published_at ? new Date(post.published_at).toLocaleDateString() : ''}</span>
+            </div>
+          </div>
+        </footer>
+      </div>
+
+      <div class="sidebar-wrapper">
+        <Sidebar />
+      </div>
     </div>
   </article>
   <Footer />
@@ -156,41 +162,54 @@ const audioUrl = getAudioUrl(post.audio_url);
 <style>
   .post-page {
     padding: 60px 0;
+    background: #f8f9fa;
   }
-  .narrow-container {
-    max-width: 800px;
-    margin: 0 auto;
+  
+  .layout-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 50px;
   }
+
+  .main-content {
+    background: white;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  }
+
   .featured-image {
     width: 100%;
     height: auto;
-    max-height: 450px;
+    max-height: 500px;
     object-fit: cover;
-    border-radius: 12px;
+    border-radius: 16px;
     margin-bottom: 40px;
   }
   .post-header {
     margin-bottom: 40px;
-    text-align: center;
   }
   .post-meta {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     color: #666;
     margin-bottom: 15px;
     display: flex;
-    justify-content: center;
     gap: 10px;
     align-items: center;
   }
   .category {
     color: var(--primary);
-    font-weight: 600;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.85rem;
   }
   h1 {
-    font-size: 2.5rem;
-    margin-bottom: 25px;
+    font-size: 3rem;
+    margin-bottom: 10px;
     line-height: 1.2;
     color: var(--text-dark);
+    font-weight: 800;
   }
   .post-footer {
     margin-top: 50px;
@@ -227,45 +246,37 @@ const audioUrl = getAudioUrl(post.audio_url);
     background-color: #eee;
   }
   .post-excerpt {
-    font-size: 1.2rem;
-    line-height: 1.8;
-    color: #444;
+    font-size: 1.25rem;
+    line-height: 1.7;
+    color: #555;
     font-style: italic;
-    border-left: 4px solid var(--primary);
-    padding-left: 20px;
+    border-left: 5px solid var(--primary);
+    padding-left: 25px;
     margin-bottom: 40px;
-    white-space: pre-line;
     text-align: justify;
-    text-justify: inter-word;
-    hyphens: auto;
   }
   .post-content {
-    font-size: 1.1rem;
-    line-height: 1.8;
+    font-size: 1.15rem;
+    line-height: 1.9;
     color: #333;
     text-align: justify;
-    text-justify: inter-word;
-    hyphens: auto;
-    word-break: break-word;
   }
   .post-content :global(p) {
-    margin-bottom: 0.8rem;
-    text-align: justify;
-    hyphens: auto;
+    margin-bottom: 1.5rem;
   }
   .post-content :global(h2), .post-content :global(h3) {
     margin: 40px 0 20px;
-    text-align: left; /* Titles should not be justified */
+    color: var(--text-dark);
+    font-weight: 700;
   }
   .video-container {
     position: relative;
-    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    padding-bottom: 56.25%;
     height: 0;
     overflow: hidden;
-    max-width: 100%;
     background: #000;
     margin: 40px 0;
-    border-radius: 12px;
+    border-radius: 16px;
   }
   .video-container iframe {
     position: absolute;
@@ -278,36 +289,22 @@ const audioUrl = getAudioUrl(post.audio_url);
   /* Audio Styles */
   .audio-section {
     margin: 40px 0;
-    padding: 25px;
-    background: #f8f9fa;
-    border-radius: 12px;
+    padding: 30px;
+    background: #fdfdfd;
+    border-radius: 16px;
     border: 1px solid #eee;
   }
   .audio-section h3 {
-    font-size: 1.1rem;
-    margin-bottom: 15px;
+    font-size: 1.2rem;
+    margin-bottom: 20px;
     color: var(--text-dark);
-    margin-top: 0 !important;
   }
-  .audio-player-container {
-    width: 100%;
-  }
-  .audio-player {
-    width: 100%;
-    height: 45px;
-  }
-  .audio-fallback {
-    margin-top: 10px;
-    font-size: 0.85rem;
-    color: #666;
-    text-align: center;
-  }
-  .audio-fallback a {
-    color: var(--primary);
-    text-decoration: underline;
-    font-weight: 500;
-  }
-  @media (max-width: 768px) {
-    h1 { font-size: 1.8rem; }
+  
+  @media (max-width: 1024px) {
+    .layout-grid { grid-template-columns: 1fr; }
+    .sidebar-wrapper { order: 2; }
+    .main-content { order: 1; padding: 25px; }
+    h1 { font-size: 2.2rem; }
   }
 </style>
+

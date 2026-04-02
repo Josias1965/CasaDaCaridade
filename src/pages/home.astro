@@ -4,6 +4,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import BlogCard from '../components/BlogCard.astro';
+import Sidebar from '../components/Sidebar.astro';
 import { supabase } from '../lib/supabase.js';
 
 // Função para converter link do Google Drive em link direto de imagem
@@ -29,7 +30,7 @@ const { data: posts, error } = await supabase
   .select(`*, categories (name, slug)`)
   .eq('status', 'published')
   .order('published_at', { ascending: false })
-  .limit(10);
+  .limit(4); // Exibir 4 posts conforme solicitado
 
 const authorIds = posts?.map(p => p.author_id) || [];
 const { data: authors } = await supabase.from('user_profiles').select('id, display_name').in('id', authorIds);
@@ -60,25 +61,37 @@ const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) 
       </div>
     </section>
 
-    <section id="fluxo" class="posts-grid-section">
-      <div class="container">
-        <h2 class="section-title">Nossas Reflexões</h2>
-        <div class="posts-grid">
-          {posts && posts.length > 0 ? (
-            posts.map(post => (
-              <BlogCard 
-                title={post.title}
-                excerpt={post.excerpt ? (post.excerpt.length > 200 ? post.excerpt.substring(0, 200) + '...' : post.excerpt) : ''}
-                slug={post.slug}
-                image={getImageUrl(post.featured_image)}
-                category={post.categories?.name}
-                author={authorsMap[post.author_id] || 'Administrador'}
-                date={post.published_at}
-              />
-            ))
-          ) : (
-            <p>Nenhum post encontrado.</p>
-          )}
+    <section id="fluxo" class="posts-section">
+      <div class="container layout-grid">
+        <div class="main-content">
+          <h2 class="section-title">Post Recentes</h2>
+          <div class="posts-grid">
+            {posts && posts.length > 0 ? (
+              posts.map(post => (
+                <BlogCard 
+                  title={post.title}
+                  excerpt={post.excerpt ? (post.excerpt.length > 200 ? post.excerpt.substring(0, 200) + '...' : post.excerpt) : ''}
+                  slug={post.slug}
+                  image={getImageUrl(post.featured_image)}
+                  category={post.categories?.name}
+                  author={authorsMap[post.author_id] || 'Administrador'}
+                  date={post.published_at}
+                />
+              ))
+            ) : (
+              <p>Nenhum post encontrado.</p>
+            )}
+          </div>
+        </div>
+        
+        <div class="sidebar-wrapper">
+          <Sidebar />
+        </div>
+      </div>
+
+      <div class="container banner-row">
+        <div class="horizontal-banner">
+          <span>Banner Horizontal Inferior</span>
         </div>
       </div>
     </section>
@@ -234,15 +247,41 @@ const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) 
     pointer-events: none;
   }
 
+  /* Layout Columns */
+  .layout-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 50px;
+    padding-bottom: 50px;
+  }
+
   .section-title {
     margin-bottom: 40px;
     font-size: 2.2rem;
     color: var(--text-dark);
   }
+
   .posts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(2, 1fr); /* Forcing 2 columns as requested */
     gap: 30px;
+  }
+
+  .banner-row {
+    margin-top: 20px;
+    padding-bottom: 80px;
+  }
+  .horizontal-banner {
+    width: 100%;
+    height: 150px;
+    background: #f0f0f0;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-weight: 600;
+    border: 2px dashed #ccc;
   }
 
   @media (max-width: 1024px) {
@@ -251,5 +290,12 @@ const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) 
     .hero-text p { margin: 0 auto 30px; }
     .hero-actions { justify-content: center; }
     .hero-video-wrapper { height: 400px; }
+    
+    .layout-grid { grid-template-columns: 1fr; }
+    .sidebar-wrapper { order: 2; }
+    .main-content { order: 1; }
+    .posts-grid { grid-template-columns: 1fr; }
   }
+</style>
+
 </style>

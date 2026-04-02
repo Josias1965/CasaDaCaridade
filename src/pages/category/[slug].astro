@@ -1,0 +1,139 @@
+---
+// src/pages/category/[slug].astro
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import BlogCard from '../../components/BlogCard.astro';
+import Sidebar from '../../components/Sidebar.astro';
+import { supabase } from '../../lib/supabase.js';
+
+export async function getStaticPaths() {
+  const { data: categories } = await supabase.from('categories').select('slug');
+  return categories?.map((category) => ({
+    params: { slug: category.slug },
+  })) || [];
+}
+
+const { slug } = Astro.params;
+
+// 1. Buscar categoria atual
+const { data: category } = await supabase
+  .from('categories')
+  .select('*')
+  .eq('slug', slug)
+  .single();
+
+// 2. Buscar posts desta categoria
+const { data: posts } = await supabase
+  .from('posts')
+  .select(`*, categories (name, slug)`)
+  .eq('status', 'published')
+  .eq('category_id', category?.id)
+  .order('published_at', { ascending: false });
+
+const authorIds = posts?.map(p => p.author_id) || [];
+const { data: authors } = await supabase.from('user_profiles').select('id, display_name').in('id', authorIds);
+const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) || []);
+
+function getImageUrl(url: string) {
+  if (!url || url === '' || url.includes('exemplo.com')) {
+    return 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=2070&auto=format&fit=crop';
+  }
+  const cleanUrl = url.trim();
+  if (cleanUrl.includes('drive.google.com')) {
+    let id = '';
+    if (cleanUrl.includes('/file/d/')) {
+      id = cleanUrl.split('/d/')[1]?.split('/')[0];
+    } else if (cleanUrl.includes('id=')) {
+      id = cleanUrl.split('id=')[1]?.split('&')[0];
+    }
+    return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1200` : cleanUrl;
+  }
+  return cleanUrl;
+}
+---
+
+<BaseLayout title={`Categoria: ${category?.name} - Casa da Caridade`}>
+  <Header />
+  <main class="category-page">
+    <div class="category-header">
+      <div class="container">
+        <h1 class="category-title">Categoria: <span>{category?.name}</span></h1>
+        <p class="category-description">Explore todas as nossas reflexões sobre {category?.name}.</p>
+      </div>
+    </div>
+
+    <section class="content-section">
+      <div class="container layout-grid">
+        <div class="main-content">
+          <div class="posts-grid">
+            {posts && posts.length > 0 ? (
+              posts.map(post => (
+                <BlogCard 
+                  title={post.title}
+                  excerpt={post.excerpt}
+                  slug={post.slug}
+                  image={getImageUrl(post.featured_image)}
+                  category={post.categories?.name}
+                  author={authorsMap[post.author_id] || 'Administrador'}
+                  date={post.published_at}
+                />
+              ))
+            ) : (
+              <p>Nenhum post encontrado nesta categoria.</p>
+            )}
+          </div>
+        </div>
+        
+        <div class="sidebar-wrapper">
+          <Sidebar />
+        </div>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .category-page {
+    background: #f8f9fa;
+  }
+  .category-header {
+    background: white;
+    padding: 60px 0;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 50px;
+  }
+  .category-title {
+    font-size: 2.8rem;
+    color: #333;
+    font-weight: 800;
+  }
+  .category-title span {
+    color: var(--primary);
+  }
+  .category-description {
+    font-size: 1.2rem;
+    color: #666;
+    margin-top: 10px;
+  }
+
+  .layout-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 50px;
+    padding-bottom: 80px;
+  }
+
+  .posts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 30px;
+  }
+
+  @media (max-width: 1024px) {
+    .layout-grid { grid-template-columns: 1fr; }
+    .sidebar-wrapper { order: 2; }
+    .main-content { order: 1; }
+  }
+</style>
