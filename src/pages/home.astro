@@ -90,9 +90,12 @@ const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) 
       </div>
 
       <div class="container banner-row">
-        <div class="horizontal-banner">
-          <span>Banner Horizontal Inferior</span>
-        </div>
+        <a href="/contato" class="horizontal-banner">
+          <img src="/images/banner-inferior.png" alt="Participar da Casa da Caridade" onerror="this.style.display='none';" />
+          <div class="horizontal-overlay">
+            <span>Junte-se a nós nesta caminhada de luz e paz</span>
+          </div>
+        </a>
       </div>
     </section>
   </main>
@@ -272,16 +275,41 @@ const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) 
     padding-bottom: 80px;
   }
   .horizontal-banner {
+    display: block;
+    position: relative;
     width: 100%;
-    height: 150px;
-    background: #f0f0f0;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #999;
-    font-weight: 600;
-    border: 2px dashed #ccc;
+    height: 400px;
+    border-radius: 16px;
+    overflow: hidden;
+    text-decoration: none;
+    background: linear-gradient(135deg, #00796b, #4db6ac);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .horizontal-banner:hover {
+    transform: translateY(-5px);
+  }
+  .horizontal-banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .horizontal-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 60px 40px 30px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    color: white;
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-align: center;
+    transition: padding-bottom 0.3s ease;
+  }
+  .horizontal-banner:hover .horizontal-overlay {
+    padding-bottom: 40px;
   }
 
   @media (max-width: 1024px) {
