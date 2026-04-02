@@ -2,23 +2,31 @@
 // src/components/Sidebar.astro
 import { supabase } from '../lib/supabase.js';
 
-const { data: categories } = await supabase
+const { data: categories, error } = await supabase
   .from('categories')
   .select('*')
   .order('name');
+
+if (error) {
+  console.error('Erro ao buscar categorias no Sidebar:', error);
+}
 ---
 
 <aside class="sidebar">
   <div class="sidebar-widget">
     <h3 class="widget-title">Categorias</h3>
     <ul class="category-list">
-      {categories?.map(category => (
-        <li>
-          <a href={`/category/${category.slug}`}>
-            {category.name}
-          </a>
-        </li>
-      ))}
+      {categories && categories.length > 0 ? (
+        categories.map(category => (
+          <li>
+            <a href={`/category/${category.slug}`}>
+              {category.name}
+            </a>
+          </li>
+        ))
+      ) : (
+        <p class="no-categories">Nenhuma categoria encontrada.</p>
+      )}
     </ul>
   </div>
 
