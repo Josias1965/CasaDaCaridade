@@ -126,48 +126,80 @@ if (!authorized) {
 </AdminLayout>
 
 <style is:global>
-  .category-manager { padding: 20px 0; }
-  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-  .split-view { display: grid; grid-template-columns: 350px 1fr; gap: 40px; }
-  .new-category, .category-list { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-  h3 { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-  .form-group { margin-bottom: 20px; }
-  .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
-  input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-  .admin-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  .admin-table th, .admin-table td { 
-    padding: 15px 20px; 
-    text-align: left; 
-    border-bottom: 1px solid #eee; 
+  .category-manager { padding: 4px 0 20px; }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 10px;
   }
-  .admin-table th {
-    font-weight: 700;
-    color: #333;
-    background-color: #fcfcfc;
-    border-bottom: 2px solid #f0f0f0;
+  .header h1 { font-size: clamp(1.3rem, 4vw, 1.8rem); margin: 0; }
+
+  /* Grid: lado a lado no desktop, empilhado no mobile */
+  .split-view {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 28px;
+    align-items: start;
   }
-  .admin-table tr:hover {
-    background-color: #f9f9f9;
+
+  .new-category,
+  .category-list {
+    background: white;
+    padding: 24px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
   }
-  .delete-cat { 
-    background-color: #fff1f0; 
-    border: 1px solid #ffa39e; 
-    color: #cf1322; 
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer; 
-    font-weight: 600; 
-    font-size: 0.85rem;
+
+  .new-category h3,
+  .category-list h3 {
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 1rem;
+  }
+
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; margin-bottom: 7px; font-weight: 600; font-size: 0.9rem; }
+  .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus { outline: none; border-color: var(--primary, #00b894); }
+
+  /* Tabela de categorias */
+  .category-list .admin-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .delete-cat {
+    background: #fff1f0;
+    border: 1px solid #ffa39e;
+    color: #cf1322;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.82rem;
     transition: all 0.2s;
+    white-space: nowrap;
   }
-  .delete-cat:hover {
-    background-color: #cf1322;
-    color: white;
-    border-color: #cf1322;
-  }
-  /* Garante que os nomes longos não quebrem o layout */
-  .admin-table td:nth-child(1) { min-width: 150px; }
-  .admin-table td:nth-child(2) { min-width: 150px; color: #666; font-family: monospace; font-size: 0.9rem;}
-  .admin-table td:nth-child(3) { text-align: right; width: 100px; }
+  .delete-cat:hover { background: #cf1322; color: white; border-color: #cf1322; }
+
+  .admin-table td:nth-child(2) { color: #666; font-family: monospace; font-size: 0.88rem; }
+  .admin-table td:last-child,
   .admin-table th:last-child { text-align: right; }
+
+  /* Mobile: empilha formulário e lista */
+  @media (max-width: 768px) {
+    .split-view { grid-template-columns: 1fr; gap: 20px; }
+  }
 </style>
