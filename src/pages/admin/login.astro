@@ -13,12 +13,33 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         placeholder="Email" 
         required 
       />
-      <input 
-        type="password" 
-        id="password" 
-        placeholder="Senha" 
-        required 
-      />
+
+      <!-- Campo de senha com olho -->
+      <div class="password-wrap">
+        <input 
+          type="password" 
+          id="password" 
+          placeholder="Senha" 
+          required 
+        />
+        <button type="button" id="toggle-password" class="eye-btn" aria-label="Mostrar/ocultar senha">
+          <!-- Ícone olho aberto -->
+          <svg id="eye-open" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <!-- Ícone olho fechado -->
+          <svg id="eye-closed" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            style="display:none">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </button>
+      </div>
+
       <button type="submit" class="btn-primary">Entrar</button>
     </form>
 
@@ -32,30 +53,39 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   <script>
     import { supabase } from '../../lib/supabase.js';
 
-    const form = document.getElementById('login-form');
+    // ── Toggle olho ──
+    const toggleBtn = document.getElementById('toggle-password');
+    const passwordInput = document.getElementById('password') as HTMLInputElement;
+    const eyeOpen   = document.getElementById('eye-open');
+    const eyeClosed = document.getElementById('eye-closed');
+
+    toggleBtn?.addEventListener('click', () => {
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      eyeOpen!.style.display   = isPassword ? 'none'  : 'block';
+      eyeClosed!.style.display = isPassword ? 'block' : 'none';
+    });
+
+    // ── Login ──
+    const form     = document.getElementById('login-form');
     const errorDiv = document.getElementById('error-message');
 
-    form.addEventListener('submit', async (e) => {
+    form?.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
+      const email    = (document.getElementById('email') as HTMLInputElement).value;
+      const password = passwordInput.value;
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
-        errorDiv.textContent = error.message;
-        errorDiv.style.display = 'block';
+        errorDiv!.textContent    = error.message;
+        errorDiv!.style.display  = 'block';
       } else {
-        // Salvar tokens nos cookies para o SSR (Astro.cookies) funcionar
         const { session } = data;
         const expires = new Date(Date.now() + session.expires_in * 1000).toUTCString();
         document.cookie = `sb-access-token=${session.access_token}; path=/; expires=${expires}; SameSite=Lax;`;
         document.cookie = `sb-refresh-token=${session.refresh_token}; path=/; expires=${expires}; SameSite=Lax;`;
-
         window.location.href = '/admin/dashboard';
       }
     });
@@ -86,22 +116,51 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   }
 
   input {
+    width: 100%;
     padding: 12px;
     border: 1px solid #eee;
     border-radius: 6px;
     font-family: inherit;
     outline: none;
     transition: border-color 0.2s;
+    box-sizing: border-box;
   }
 
   input:focus {
     border-color: var(--primary);
   }
 
-  button {
+  /* ── Campo de senha com ícone ── */
+  .password-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .password-wrap input {
+    padding-right: 46px; /* espaço para o botão */
+  }
+  .eye-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+    margin: 0;
+    height: auto;
+    font-weight: normal;
+  }
+  .eye-btn:hover { color: var(--primary); }
+
+  button[type="submit"] {
     margin-top: 10px;
     font-weight: 600;
   }
+
   .login-footer {
     margin-top: 20px;
     text-align: center;

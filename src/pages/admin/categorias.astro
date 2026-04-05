@@ -3,7 +3,7 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { requireAuth } from '../../lib/permissions.js';
 
-const { authorized } = await requireAuth(Astro.cookies);
+const { authorized, canDelete } = await requireAuth(Astro.cookies);
 
 if (!authorized) {
   return Astro.redirect('/admin/login');
@@ -40,7 +40,7 @@ if (!authorized) {
     </div>
   </div>
 
-  <script>
+  <script define:vars={{ canDelete }}>
     import { supabase } from '../../lib/supabase.js';
 
     const nameInput = document.getElementById('name');
@@ -87,7 +87,7 @@ if (!authorized) {
               <tr>
                 <td>${cat.name}</td>
                 <td>${cat.slug}</td>
-                <td><button class="delete-cat" data-id="${cat.id}">Excluir</button></td>
+                <td>${canDelete ? `<button class="delete-cat" data-id="${cat.id}">Excluir</button>` : '<span style="color:#ccc;font-size:0.8rem">—</span>'}</td>
               </tr>
             `).join('')}
           </tbody>

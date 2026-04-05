@@ -3,7 +3,7 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireAuth } from '../../../lib/permissions.js';
 
-const { authorized } = await requireAuth(Astro.cookies);
+const { authorized, canDelete } = await requireAuth(Astro.cookies);
 
 if (!authorized) {
   return Astro.redirect('/admin/login');
@@ -25,7 +25,8 @@ if (!authorized) {
     </div>
   </div>
 
-  <script>
+  <!-- Passa canDelete do servidor para o script cliente -->
+  <script define:vars={{ canDelete }}>
     import { supabase } from '../../../lib/supabase.js';
 
     async function loadAllPosts() {
@@ -68,7 +69,7 @@ if (!authorized) {
             ${posts.map(post => `
               <tr>
                 <td><strong>${post.title}</strong></td>
-                <td>${(post.categories as any)?.name || '---'}</td>
+                <td>${post.categories?.name || '---'}</td>
                 <td><span class="status-badge ${post.status}">${post.status === 'published' ? 'Publicado' : 'Rascunho'}</span></td>
                 <td class="col-data">${new Date(post.created_at).toLocaleDateString('pt-BR')}</td>
                 <td class="col-acoes">
@@ -80,9 +81,11 @@ if (!authorized) {
                       <a href="/admin/posts/editar/${post.id}" class="drop-item drop-edit">
                         ✏️ Editar
                       </a>
+                      ${canDelete ? `
                       <button class="drop-item drop-delete" onclick="deletePost('${post.id}', '${post.title.replace(/'/g, "\\'")}')">
                         🗑️ Excluir
                       </button>
+                      ` : ''}
                     </div>
                   </div>
                 </td>
@@ -94,25 +97,21 @@ if (!authorized) {
     }
 
     // Abre/fecha o dropdown do botão clicado e fecha os outros
-    window.toggleMenu = (btn: HTMLButtonElement) => {
-      const wrap = btn.closest('.dropdown-wrap') as HTMLElement;
-      const menu = wrap?.querySelector('.dropdown-menu') as HTMLElement;
+    window.toggleMenu = (btn) => {
+      const wrap = btn.closest('.dropdown-wrap');
       const isOpen = wrap?.classList.contains('open');
-
-      // fecha todos
       document.querySelectorAll('.dropdown-wrap.open').forEach(w => w.classList.remove('open'));
-
       if (!isOpen) wrap?.classList.add('open');
     };
 
     // Fecha ao clicar fora
     document.addEventListener('click', (e) => {
-      if (!(e.target as Element).closest('.dropdown-wrap')) {
+      if (!e.target.closest('.dropdown-wrap')) {
         document.querySelectorAll('.dropdown-wrap.open').forEach(w => w.classList.remove('open'));
       }
     });
 
-    window.deletePost = async (id: string, title: string) => {
+    window.deletePost = async (id, title) => {
       if (!confirm(`Tem certeza que deseja excluir o post "${title}"?`)) return;
 
       const { error } = await supabase.from('posts').delete().eq('id', id);
@@ -132,16 +131,10 @@ if (!authorized) {
 <style is:global>
   .admin-container { padding: 4px 0 20px; }
 
-  /* Coluna de data compacta */
-  .col-data { white-space: nowrap; }
+  .col-data  { white-space: nowrap; }
+  .col-acoes { text-align: center !important; width: 60px; }
 
-  /* Coluna de ações centralizada e compacta */
-  .col-acoes {
-    text-align: center !important;
-    width: 60px;
-  }
-
-  /* ── Botão de três pontos ── */
+  /* ── Botão ⋮ ── */
   .btn-menu {
     display: inline-flex;
     flex-direction: column;
@@ -166,13 +159,8 @@ if (!authorized) {
     border-radius: 50%;
   }
 
-  /* ── Dropdown wrapper ── */
-  .dropdown-wrap {
-    position: relative;
-    display: inline-block;
-  }
-
-  /* ── Menu suspenso ── */
+  /* ── Dropdown ── */
+  .dropdown-wrap { position: relative; display: inline-block; }
   .dropdown-menu {
     display: none;
     position: absolute;
@@ -188,7 +176,6 @@ if (!authorized) {
   }
   .dropdown-wrap.open .dropdown-menu { display: block; }
 
-  /* Itens do dropdown */
   .drop-item {
     display: flex;
     align-items: center;
@@ -205,7 +192,7 @@ if (!authorized) {
     transition: background 0.15s;
     color: #333;
   }
-  .drop-item:hover { background: #f8f9fa; }
-  .drop-delete { color: #cf1322 !important; }
-  .drop-delete:hover { background: #fff5f5 !important; }
+  .drop-item:hover  { background: #f8f9fa; }
+  .drop-delete      { color: #cf1322 !important; }
+  .drop-delete:hover{ background: #fff5f5 !important; }
 </style>
