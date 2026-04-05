@@ -35,12 +35,12 @@ if (!authorized) {
 
       <div class="category-list">
         <h3>Categorias Existentes</h3>
-        <div id="categories-container">Carregando...</div>
+        <div id="categories-container" data-can-delete={canDelete ? "true" : "false"}>Carregando...</div>
       </div>
     </div>
   </div>
 
-  <script define:vars={{ canDelete }}>
+  <script>
     import { supabase } from '../../lib/supabase.js';
 
     const nameInput = document.getElementById('name');
@@ -56,6 +56,9 @@ if (!authorized) {
       slugInput.value = slug;
     });
 
+    const container = document.getElementById('categories-container');
+    const canDelete = container?.dataset.canDelete === 'true';
+
     async function loadCategories() {
       const { data, error } = await supabase
         .from('categories')
@@ -67,7 +70,7 @@ if (!authorized) {
         return;
       }
 
-      const container = document.getElementById('categories-container');
+      if (!container) return;
       if (!data || data.length === 0) {
         container.innerHTML = '<p>Nenhuma categoria encontrada.</p>';
         return;

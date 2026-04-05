@@ -20,29 +20,35 @@ if (!authorized) {
       </div>
     </header>
 
-    <div id="posts-manager" class="admin-table-container">
+    <!-- data-can-delete passa o valor do servidor para o script -->
+    <div
+      id="posts-manager"
+      class="admin-table-container"
+      data-can-delete={canDelete ? "true" : "false"}
+    >
       Carregando posts...
     </div>
   </div>
 
-  <!-- Passa canDelete do servidor para o script cliente -->
-  <script define:vars={{ canDelete }}>
+  <script>
     import { supabase } from '../../../lib/supabase.js';
 
+    const container = document.getElementById('posts-manager');
+    const canDelete = container?.dataset.canDelete === 'true';
+
     async function loadAllPosts() {
+      if (!container) return;
+
       const { data: posts, error } = await supabase
         .from('posts')
         .select(`
-          id, 
-          title, 
-          status, 
+          id,
+          title,
+          status,
           created_at,
           categories (name)
         `)
         .order('created_at', { ascending: false });
-
-      const container = document.getElementById('posts-manager');
-      if (!container) return;
 
       if (error) {
         container.innerHTML = `<p class="error">Erro ao carregar: ${error.message}</p>`;
@@ -53,6 +59,11 @@ if (!authorized) {
         container.innerHTML = '<p class="empty-state">Nenhum post encontrado. Comece a criar!</p>';
         return;
       }
+
+      const deleteBtn = (id: string, title: string) =>
+        canDelete
+          ? `<button class="drop-item drop-delete" data-id="${id}" data-title="${title.replace(/"/g, '&quot;')}">🗑️ Excluir</button>`
+          : '';
 
       container.innerHTML = `
         <table class="admin-table">
@@ -66,63 +77,59 @@ if (!authorized) {
             </tr>
           </thead>
           <tbody>
-            ${posts.map(post => `
+            ${posts.map(post => {
+              const cats = post.categories as any;
+              const catName = Array.isArray(cats) ? cats[0]?.name : cats?.name;
+              return `
               <tr>
                 <td><strong>${post.title}</strong></td>
-                <td>${post.categories?.name || '---'}</td>
+                <td>${catName || '---'}</td>
                 <td><span class="status-badge ${post.status}">${post.status === 'published' ? 'Publicado' : 'Rascunho'}</span></td>
                 <td class="col-data">${new Date(post.created_at).toLocaleDateString('pt-BR')}</td>
                 <td class="col-acoes">
                   <div class="dropdown-wrap">
-                    <button class="btn-menu" onclick="toggleMenu(this)" aria-label="Ações">
-                      <span></span><span></span><span></span>
-                    </button>
+                    <button class="btn-menu" aria-label="Ações"><span></span><span></span><span></span></button>
                     <div class="dropdown-menu">
-                      <a href="/admin/posts/editar/${post.id}" class="drop-item drop-edit">
-                        ✏️ Editar
-                      </a>
-                      ${canDelete ? `
-                      <button class="drop-item drop-delete" onclick="deletePost('${post.id}', '${post.title.replace(/'/g, "\\'")}')">
-                        🗑️ Excluir
-                      </button>
-                      ` : ''}
+                      <a href="/admin/posts/editar/${post.id}" class="drop-item drop-edit">✏️ Editar</a>
+                      ${deleteBtn(post.id, post.title)}
                     </div>
                   </div>
                 </td>
-              </tr>
-            `).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       `;
+
+      // Delegação de eventos — hamburguer
+      container.querySelectorAll('.btn-menu').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const wrap = (e.currentTarget as HTMLElement).closest('.dropdown-wrap');
+          const isOpen = wrap?.classList.contains('open');
+          document.querySelectorAll('.dropdown-wrap.open').forEach(w => w.classList.remove('open'));
+          if (!isOpen) wrap?.classList.add('open');
+        });
+      });
+
+      // Delegação de eventos — excluir
+      container.querySelectorAll('.drop-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const el    = e.currentTarget as HTMLElement;
+          const id    = el.dataset.id!;
+          const title = el.dataset.title!;
+          if (!confirm(`Excluir o post "${title}"?`)) return;
+          const { error: delErr } = await supabase.from('posts').delete().eq('id', id);
+          if (delErr) alert('Erro: ' + delErr.message);
+          else { alert('Post excluído!'); loadAllPosts(); }
+        });
+      });
     }
 
-    // Abre/fecha o dropdown do botão clicado e fecha os outros
-    window.toggleMenu = (btn) => {
-      const wrap = btn.closest('.dropdown-wrap');
-      const isOpen = wrap?.classList.contains('open');
+    // Fecha dropdown ao clicar fora
+    document.addEventListener('click', () => {
       document.querySelectorAll('.dropdown-wrap.open').forEach(w => w.classList.remove('open'));
-      if (!isOpen) wrap?.classList.add('open');
-    };
-
-    // Fecha ao clicar fora
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.dropdown-wrap')) {
-        document.querySelectorAll('.dropdown-wrap.open').forEach(w => w.classList.remove('open'));
-      }
     });
-
-    window.deletePost = async (id, title) => {
-      if (!confirm(`Tem certeza que deseja excluir o post "${title}"?`)) return;
-
-      const { error } = await supabase.from('posts').delete().eq('id', id);
-
-      if (error) {
-        alert('Erro ao excluir: ' + error.message);
-      } else {
-        alert('Post excluído com sucesso!');
-        loadAllPosts();
-      }
-    };
 
     loadAllPosts();
   </script>
@@ -130,11 +137,9 @@ if (!authorized) {
 
 <style is:global>
   .admin-container { padding: 4px 0 20px; }
-
   .col-data  { white-space: nowrap; }
   .col-acoes { text-align: center !important; width: 60px; }
 
-  /* ── Botão ⋮ ── */
   .btn-menu {
     display: inline-flex;
     flex-direction: column;
@@ -151,15 +156,8 @@ if (!authorized) {
     padding: 0;
   }
   .btn-menu:hover { background: #e9ecef; }
-  .btn-menu span {
-    display: block;
-    width: 4px;
-    height: 4px;
-    background: #495057;
-    border-radius: 50%;
-  }
+  .btn-menu span { display: block; width: 4px; height: 4px; background: #495057; border-radius: 50%; }
 
-  /* ── Dropdown ── */
   .dropdown-wrap { position: relative; display: inline-block; }
   .dropdown-menu {
     display: none;
@@ -192,7 +190,7 @@ if (!authorized) {
     transition: background 0.15s;
     color: #333;
   }
-  .drop-item:hover  { background: #f8f9fa; }
-  .drop-delete      { color: #cf1322 !important; }
-  .drop-delete:hover{ background: #fff5f5 !important; }
+  .drop-item:hover   { background: #f8f9fa; }
+  .drop-delete       { color: #cf1322 !important; }
+  .drop-delete:hover { background: #fff5f5 !important; }
 </style>
