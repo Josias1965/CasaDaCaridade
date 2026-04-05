@@ -41,6 +41,7 @@ if (!authorized) {
         .order('created_at', { ascending: false });
 
       const container = document.getElementById('posts-manager');
+      if (!container) return;
 
       if (error) {
         container.innerHTML = `<p class="error">Erro ao carregar: ${error.message}</p>`;
@@ -48,7 +49,7 @@ if (!authorized) {
       }
 
       if (!posts || posts.length === 0) {
-        container.innerHTML = '<p>Nenhum post encontrado. Comece a criar!</p>';
+        container.innerHTML = '<p class="empty-state">Nenhum post encontrado. Comece a criar!</p>';
         return;
       }
 
@@ -59,21 +60,30 @@ if (!authorized) {
               <th>Título</th>
               <th>Categoria</th>
               <th>Status</th>
-              <th>Data de Criação</th>
-              <th style="text-align: right;">Ações</th>
+              <th>Data</th>
+              <th class="col-acoes">Ações</th>
             </tr>
           </thead>
           <tbody>
             ${posts.map(post => `
               <tr>
                 <td><strong>${post.title}</strong></td>
-                <td>${post.categories?.name || '---'}</td>
+                <td>${(post.categories as any)?.name || '---'}</td>
                 <td><span class="status-badge ${post.status}">${post.status === 'published' ? 'Publicado' : 'Rascunho'}</span></td>
-                <td>${new Date(post.created_at).toLocaleDateString()}</td>
-                <td style="text-align: right;">
-                  <div class="table-actions">
-                    <a href="/admin/posts/editar/${post.id}" class="btn-edit">Editar</a>
-                    <button class="btn-delete" onclick="deletePost('${post.id}', '${post.title.replace(/'/g, "\\'")}')">Excluir</button>
+                <td class="col-data">${new Date(post.created_at).toLocaleDateString('pt-BR')}</td>
+                <td class="col-acoes">
+                  <div class="dropdown-wrap">
+                    <button class="btn-menu" onclick="toggleMenu(this)" aria-label="Ações">
+                      <span></span><span></span><span></span>
+                    </button>
+                    <div class="dropdown-menu">
+                      <a href="/admin/posts/editar/${post.id}" class="drop-item drop-edit">
+                        ✏️ Editar
+                      </a>
+                      <button class="drop-item drop-delete" onclick="deletePost('${post.id}', '${post.title.replace(/'/g, "\\'")}')">
+                        🗑️ Excluir
+                      </button>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -83,7 +93,26 @@ if (!authorized) {
       `;
     }
 
-    window.deletePost = async (id, title) => {
+    // Abre/fecha o dropdown do botão clicado e fecha os outros
+    window.toggleMenu = (btn: HTMLButtonElement) => {
+      const wrap = btn.closest('.dropdown-wrap') as HTMLElement;
+      const menu = wrap?.querySelector('.dropdown-menu') as HTMLElement;
+      const isOpen = wrap?.classList.contains('open');
+
+      // fecha todos
+      document.querySelectorAll('.dropdown-wrap.open').forEach(w => w.classList.remove('open'));
+
+      if (!isOpen) wrap?.classList.add('open');
+    };
+
+    // Fecha ao clicar fora
+    document.addEventListener('click', (e) => {
+      if (!(e.target as Element).closest('.dropdown-wrap')) {
+        document.querySelectorAll('.dropdown-wrap.open').forEach(w => w.classList.remove('open'));
+      }
+    });
+
+    window.deletePost = async (id: string, title: string) => {
       if (!confirm(`Tem certeza que deseja excluir o post "${title}"?`)) return;
 
       const { error } = await supabase.from('posts').delete().eq('id', id);
@@ -102,4 +131,81 @@ if (!authorized) {
 
 <style is:global>
   .admin-container { padding: 4px 0 20px; }
+
+  /* Coluna de data compacta */
+  .col-data { white-space: nowrap; }
+
+  /* Coluna de ações centralizada e compacta */
+  .col-acoes {
+    text-align: center !important;
+    width: 60px;
+  }
+
+  /* ── Botão de três pontos ── */
+  .btn-menu {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 34px;
+    height: 34px;
+    background: #f1f3f5;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.18s;
+    padding: 0;
+  }
+  .btn-menu:hover { background: #e9ecef; }
+  .btn-menu span {
+    display: block;
+    width: 4px;
+    height: 4px;
+    background: #495057;
+    border-radius: 50%;
+  }
+
+  /* ── Dropdown wrapper ── */
+  .dropdown-wrap {
+    position: relative;
+    display: inline-block;
+  }
+
+  /* ── Menu suspenso ── */
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    min-width: 140px;
+    z-index: 500;
+    overflow: hidden;
+  }
+  .dropdown-wrap.open .dropdown-menu { display: block; }
+
+  /* Itens do dropdown */
+  .drop-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+    color: #333;
+  }
+  .drop-item:hover { background: #f8f9fa; }
+  .drop-delete { color: #cf1322 !important; }
+  .drop-delete:hover { background: #fff5f5 !important; }
 </style>
