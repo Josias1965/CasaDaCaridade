@@ -112,6 +112,10 @@ if (!authorized) {
             <input type="url" id="video_url" placeholder="https://www.youtube.com/watch?v=..." />
           </div>
           <div class="form-group">
+            <label for="drive_video_url">URL do Vídeo (Google Drive)</label>
+            <input type="url" id="drive_video_url" placeholder="https://drive.google.com/file/d/..." />
+          </div>
+          <div class="form-group">
             <label for="audio_url">URL do Áudio (Google Drive)</label>
             <input type="url" id="audio_url" placeholder="https://drive.google.com/file/d/..." />
             <p class="help-text">Cole o link de compartilhamento do Google Drive.</p>
@@ -159,6 +163,8 @@ if (!authorized) {
       if (statusInput) statusInput.value = post.status || 'draft';
       if (featuredImageInput) featuredImageInput.value = post.featured_image || '';
       if (videoUrlInput) videoUrlInput.value = post.video_url || '';
+      const driveVideoUrlInput = document.getElementById('drive_video_url') as HTMLInputElement;
+      if (driveVideoUrlInput) driveVideoUrlInput.value = post.drive_video_url || '';
       const audioUrlInput = document.getElementById('audio_url') as HTMLInputElement;
       if (audioUrlInput) audioUrlInput.value = post.audio_url || '';
       
@@ -238,6 +244,7 @@ if (!authorized) {
         category_id: (document.getElementById('category') as HTMLSelectElement).value || null,
         featured_image: (document.getElementById('featured_image') as HTMLInputElement).value || null,
         video_url: (document.getElementById('video_url') as HTMLInputElement).value || null,
+        drive_video_url: (document.getElementById('drive_video_url') as HTMLInputElement).value || null,
         audio_url: (document.getElementById('audio_url') as HTMLInputElement).value || null,
         status: (document.getElementById('status') as HTMLSelectElement).value,
         updated_at: new Date().toISOString(),

@@ -42,6 +42,22 @@ function getAudioUrl(url: string) {
   return cleanUrl;
 }
 
+// Função para converter link do Google Drive em link de preview de vídeo
+function getDriveVideoUrl(url: string) {
+  if (!url) return null;
+  const cleanUrl = url.trim();
+  if (cleanUrl.includes('drive.google.com')) {
+    let id = '';
+    if (cleanUrl.includes('/file/d/')) {
+      id = cleanUrl.split('/d/')[1]?.split('/')[0];
+    } else if (cleanUrl.includes('id=')) {
+      id = cleanUrl.split('id=')[1]?.split('&')[0];
+    }
+    return id ? `https://drive.google.com/file/d/${id}/preview` : cleanUrl;
+  }
+  return cleanUrl;
+}
+
 // Buscar o post
 const { data: post } = await supabase
   .from('posts')
@@ -74,6 +90,7 @@ if (post.video_url) {
 }
 
 const audioUrl = getAudioUrl(post.audio_url);
+const driveVideoUrl = getDriveVideoUrl(post.drive_video_url);
 ---
 
 <BaseLayout title={post.title}>
@@ -132,6 +149,15 @@ const audioUrl = getAudioUrl(post.audio_url);
               title="YouTube video player" 
               frameborder="0" 
               allowfullscreen="true"
+            ></iframe>
+          </div>
+        )}
+
+        {driveVideoUrl && (
+          <div class="video-container">
+            <iframe 
+              src={driveVideoUrl} 
+              allow="autoplay"
             ></iframe>
           </div>
         )}
