@@ -1,0 +1,61 @@
+---
+// src/components/VisitorCounter.astro
+import { supabase } from '../lib/supabase';
+
+let count = 0;
+
+try {
+  // Chamamos a função RPC no Supabase para incrementar e obter o novo valor
+  // page_slug 'global' conta visitas em todo o site (onde o footer estiver)
+  const { data, error } = await supabase.rpc('increment_site_visit', { slug: 'global' });
+  
+  if (!error && data !== null) {
+    count = data;
+  } else {
+    // Fallback caso a função ainda não exista ou ocorra erro
+    const { data: fetchPage } = await supabase
+      .from('site_visits')
+      .select('count')
+      .eq('page_slug', 'global')
+      .single();
+    if (fetchPage) count = fetchPage.count;
+  }
+} catch (e) {
+  console.error("Erro ao carregar contador:", e);
+}
+---
+
+<div class="visitor-counter">
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-users"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+  <span class="text">Visitantes:</span>
+  <span class="count">{count > 0 ? count.toLocaleString() : '---'}</span>
+</div>
+
+<style>
+  .visitor-counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: #a0a0a0;
+    margin-top: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s ease;
+  }
+  .visitor-counter:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+  }
+  .count {
+    color: var(--primary, #009688);
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+  }
+  svg {
+    color: var(--primary);
+    opacity: 0.8;
+  }
+</style>

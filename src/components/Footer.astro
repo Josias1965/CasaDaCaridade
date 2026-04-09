@@ -1,5 +1,6 @@
 ---
 // src/components/Footer.astro
+import VisitorCounter from './VisitorCounter.astro';
 const year = new Date().getFullYear();
 ---
 <footer class="main-footer">
@@ -8,6 +9,7 @@ const year = new Date().getFullYear();
       <div class="footer-info">
         <h3>Casa da Caridade</h3>
         <p>Um blog dedicado ao compartilhamento de conhecimento e amor ao próximo.</p>
+        <VisitorCounter />
       </div>
       <div class="footer-links">
         <h4>Links</h4>
