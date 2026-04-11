@@ -2,45 +2,49 @@
 // src/components/VisitorCounter.astro
 import { supabase } from '../lib/supabase';
 
+// No servidor, apenas buscamos o valor atual para exibição rápida
 let count = 0;
-
 try {
-  // Verificamos se o usuário já tem o cookie de visita
-  const hasVisited = Astro.cookies.get('casa_caridade_visited');
-
-  if (!hasVisited) {
-    // Primeira visita: Incrementamos e definimos o cookie para 24 horas
-    const { data: newData, error: incError } = await supabase.rpc('increment_site_visit', { slug: 'global' });
-    
-    if (!incError && newData !== null) {
-      count = newData;
-      Astro.cookies.set('casa_caridade_visited', 'true', { 
-        path: '/', 
-        maxAge: 60 * 60 * 24, // 24 horas para considerar uma nova visita
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax'
-      });
-    }
-  } else {
-    // Já visitou: Apenas buscamos o valor atual sem incrementar
-    const { data: fetchPage } = await supabase
-      .from('site_visits')
-      .select('count')
-      .eq('page_slug', 'global')
-      .single();
-    if (fetchPage) count = fetchPage.count;
-  }
+  const { data } = await supabase
+    .from('site_visits')
+    .select('count')
+    .eq('page_slug', 'global')
+    .single();
+  if (data) count = data.count;
 } catch (e) {
-  console.error("Erro ao carregar contador:", e);
+  console.error("Erro ao buscar contador:", e);
 }
 ---
 
-<div class="visitor-counter">
+<div class="visitor-counter" id="counter-container">
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-users"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
   <span class="text">Visitantes:</span>
-  <span class="count">{count > 0 ? count.toLocaleString() : '---'}</span>
+  <span class="count" id="visitor-count">{count > 0 ? count.toLocaleString() : '---'}</span>
 </div>
+
+<script>
+  import { supabase } from '../lib/supabase';
+
+  async function handleVisit() {
+    const VISIT_KEY = 'casa_caridade_visited_v2'; // v2 para resetar e testar
+    const hasVisited = localStorage.getItem(VISIT_KEY);
+    const countDisplay = document.getElementById('visitor-count');
+
+    if (!hasVisited) {
+      // Primeira vez nesta sessão/navegador: incrementa
+      const { data, error } = await supabase.rpc('increment_site_visit', { slug: 'global' });
+      
+      if (!error && data !== null) {
+        if (countDisplay) countDisplay.textContent = data.toLocaleString();
+        // Marca como visitado (pode ser um timestamp para expirar em 24h se quiser)
+        localStorage.setItem(VISIT_KEY, Date.now().toString());
+      }
+    }
+  }
+
+  // Executa ao carregar
+  handleVisit();
+</script>
 
 <style>
   .visitor-counter {
