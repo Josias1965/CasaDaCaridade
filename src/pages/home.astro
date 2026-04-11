@@ -114,9 +114,9 @@ const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) 
     // Carregar imagens
     for (let i = 0; i < totalFrames; i++) {
         const img = new Image();
-        // Formato: 20260402_122620_UTC_0_000.jpg até 059.jpg
+        // Formato: Woman_in_prayer_202604111427(1)_000.jpg até 059.jpg
         const frameNumber = i.toString().padStart(3, '0');
-        img.src = `/images/hero/20260402_122620_UTC_0_${frameNumber}.jpg`;
+        img.src = `/images/hero/prece/Woman_in_prayer_202604111427(1)_${frameNumber}.jpg`;
         images.push(img);
     }
 
