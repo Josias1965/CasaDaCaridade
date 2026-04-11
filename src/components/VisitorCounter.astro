@@ -5,14 +5,25 @@ import { supabase } from '../lib/supabase';
 let count = 0;
 
 try {
-  // Chamamos a função RPC no Supabase para incrementar e obter o novo valor
-  // page_slug 'global' conta visitas em todo o site (onde o footer estiver)
-  const { data, error } = await supabase.rpc('increment_site_visit', { slug: 'global' });
-  
-  if (!error && data !== null) {
-    count = data;
+  // Verificamos se o usuário já tem o cookie de visita
+  const hasVisited = Astro.cookies.get('casa_caridade_visited');
+
+  if (!hasVisited) {
+    // Primeira visita: Incrementamos e definimos o cookie para 24 horas
+    const { data: newData, error: incError } = await supabase.rpc('increment_site_visit', { slug: 'global' });
+    
+    if (!incError && newData !== null) {
+      count = newData;
+      Astro.cookies.set('casa_caridade_visited', 'true', { 
+        path: '/', 
+        maxAge: 60 * 60 * 24, // 24 horas para considerar uma nova visita
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax'
+      });
+    }
   } else {
-    // Fallback caso a função ainda não exista ou ocorra erro
+    // Já visitou: Apenas buscamos o valor atual sem incrementar
     const { data: fetchPage } = await supabase
       .from('site_visits')
       .select('count')
