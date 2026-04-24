@@ -125,6 +125,14 @@ if (!authorized) {
             <input type="url" id="audio_url" placeholder="https://drive.google.com/file/d/..." />
             <p class="help-text">Cole o link de compartilhamento do Google Drive.</p>
           </div>
+          <div class="form-group">
+            <label for="slides_url">URL da Apresentação Slide (Google Drive)</label>
+            <input type="url" id="slides_url" placeholder="https://drive.google.com/file/d/... (PDF ou PPTX)" />
+          </div>
+          <div class="form-group">
+            <label for="slides_title">Nome da Apresentação</label>
+            <input type="text" id="slides_title" placeholder="Ex: Apresentação sobre Solidariedade" />
+          </div>
         </div>
       </aside>
     </form>
@@ -231,6 +239,8 @@ if (!authorized) {
           video_url: (document.getElementById('video_url') as HTMLInputElement).value || null,
           drive_video_url: (document.getElementById('drive_video_url') as HTMLInputElement).value || null,
           audio_url: (document.getElementById('audio_url') as HTMLInputElement).value || null,
+          slides_url: (document.getElementById('slides_url') as HTMLInputElement).value || null,
+          slides_title: (document.getElementById('slides_title') as HTMLInputElement).value || null,
           status: (document.getElementById('status') as HTMLSelectElement).value,
           author_id: user.id,
           published_at: (document.getElementById('status') as HTMLSelectElement).value === 'published' 

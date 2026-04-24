@@ -26,8 +26,8 @@ function getImageUrl(url: string) {
   return cleanUrl;
 }
 
-// Função para converter link do Google Drive em link direto de áudio
-function getAudioUrl(url: string) {
+// Função para converter link do Google Drive em link direto de áudio ou download
+function getDownloadUrl(url: string) {
   if (!url) return null;
   const cleanUrl = url.trim();
   if (cleanUrl.includes('drive.google.com')) {
@@ -42,8 +42,8 @@ function getAudioUrl(url: string) {
   return cleanUrl;
 }
 
-// Função para converter link do Google Drive em link de preview de vídeo
-function getDriveVideoUrl(url: string) {
+// Função para converter link do Google Drive em link de preview de vídeo ou documento
+function getDrivePreviewUrl(url: string) {
   if (!url) return null;
   const cleanUrl = url.trim();
   if (cleanUrl.includes('drive.google.com')) {
@@ -89,8 +89,11 @@ if (post.video_url) {
   }
 }
 
-const audioUrl = getAudioUrl(post.audio_url);
-const driveVideoUrl = getDriveVideoUrl(post.drive_video_url);
+const audioUrl = getDownloadUrl(post.audio_url);
+const driveVideoPreviewUrl = getDrivePreviewUrl(post.drive_video_url);
+const driveVideoDownloadUrl = getDownloadUrl(post.drive_video_url);
+const slidesPreviewUrl = getDrivePreviewUrl(post.slides_url);
+const slidesDownloadUrl = getDownloadUrl(post.slides_url);
 ---
 
 <BaseLayout title={post.title}>
@@ -153,14 +156,46 @@ const driveVideoUrl = getDriveVideoUrl(post.drive_video_url);
           </div>
         )}
 
-        {driveVideoUrl && (
-          <div class="video-container">
-            <iframe 
-              src={driveVideoUrl} 
-              allow="autoplay"
-            ></iframe>
+        {driveVideoPreviewUrl && (
+          <div class="video-section">
+            <div class="video-container">
+              <iframe 
+                src={driveVideoPreviewUrl} 
+                allow="autoplay"
+              ></iframe>
+            </div>
+            {driveVideoDownloadUrl && (
+              <div class="video-fallback">
+                <p>Problemas com o vídeo? <a href={driveVideoDownloadUrl} target="_blank" rel="noopener noreferrer">Baixar arquivo de vídeo</a>.</p>
+              </div>
+            )}
           </div>
         )}
+
+        {slidesPreviewUrl && (
+          <div class="slides-section">
+            <h3>Apresentação em Slide</h3>
+            <div class="slides-info">
+              {slidesPreviewUrl.includes('drive.google.com') && (
+                <div class="slides-preview">
+                  <iframe 
+                    src={slidesPreviewUrl} 
+                    width="100%" 
+                    height="450" 
+                    style="border-radius: 12px; border: 1px solid #eee; background: #fafafa; margin-bottom: 20px;"
+                    allow="autoplay"
+                  ></iframe>
+                </div>
+              )}
+              <p>Arquivo: <strong>{post.slides_title || 'Apresentação'}</strong></p>
+              <a href={slidesDownloadUrl} target="_blank" rel="noopener noreferrer" class="btn-download-slide">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Baixar Apresentação
+              </a>
+            </div>
+          </div>
+        )}
+
 
         <footer class="post-footer">
           <div class="author-info-footer">
@@ -312,18 +347,55 @@ const driveVideoUrl = getDriveVideoUrl(post.drive_video_url);
     height: 100%;
   }
 
-  /* Audio Styles */
-  .audio-section {
+  /* Audio & Video Styles */
+  .audio-section, .video-section, .slides-section {
     margin: 40px 0;
     padding: 30px;
     background: #fdfdfd;
     border-radius: 16px;
     border: 1px solid #eee;
   }
-  .audio-section h3 {
+  .audio-section h3, .slides-section h3 {
     font-size: 1.2rem;
     margin-bottom: 20px;
     color: var(--text-dark);
+  }
+  .video-fallback, .audio-fallback {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: #666;
+  }
+  .video-fallback a, .audio-fallback a {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .video-fallback a:hover, .audio-fallback a:hover {
+    text-decoration: underline;
+  }
+
+  /* Slides Section */
+  .slides-info {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .btn-download-slide {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--primary);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    width: fit-content;
+    transition: all 0.2s;
+  }
+  .btn-download-slide:hover {
+    background: var(--primary-dark, #000);
+    transform: translateY(-2px);
   }
   
   @media (max-width: 1024px) {
