@@ -92,9 +92,7 @@ const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) 
       <div class="container banner-row">
         <a href="/contato" class="horizontal-banner">
           <img src="/images/banner-inferior.png" alt="Participar da Casa da Caridade" onerror="this.style.display='none';" />
-          <div class="horizontal-overlay">
-            <span>Junte-se a nós nesta caminhada de luz e paz</span>
-          </div>
+
         </a>
       </div>
     </section>
@@ -295,22 +293,7 @@ const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) 
     object-fit: cover;
     display: block;
   }
-  .horizontal-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 60px 40px 30px;
-    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-    color: white;
-    font-size: 1.8rem;
-    font-weight: 700;
-    text-align: center;
-    transition: padding-bottom 0.3s ease;
-  }
-  .horizontal-banner:hover .horizontal-overlay {
-    padding-bottom: 40px;
-  }
+
 
   @media (max-width: 1024px) {
     .hero-grid { grid-template-columns: 1fr; text-align: center; gap: 40px; }
@@ -333,10 +316,7 @@ const authorsMap = Object.fromEntries(authors?.map(a => [a.id, a.display_name]) 
       object-fit: contain;
       background-color: #0b1120; /* Fundo escuro para a arte não ficar com bordas brancas vazias */
     }
-    .horizontal-overlay {
-      font-size: 1.1rem;
-      padding: 20px 15px;
-    }
+
   }
 </style>
 
